@@ -46,7 +46,7 @@
     "zotero-plugin-toolkit": "^5.1.0-beta.8"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.1",
+    "@eslint/js": "^10.0.1",
     "@types/chai": "^5.2.3",
     "@types/mocha": "^10.0.10",
     "@types/node": "^22.16.5",
