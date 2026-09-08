@@ -281,6 +281,7 @@ export function buildReaderPopup(
                 {
                   type: "mouseup",
                   listener: (_ev) => {
+                    onTextAreaResize(_ev as MouseEvent);
                     _ev.target?.removeEventListener(
                       "mousemove",
                       onTextAreaResize as (ev: Event) => void,
@@ -429,6 +430,12 @@ function onTextAreaResize(ev: MouseEvent) {
     const textarea = ev.target as HTMLTextAreaElement;
     setPref("popupWidth", textarea.offsetWidth);
     setPref("popupHeight", textarea.offsetHeight);
+    const container = textarea.closest(
+      `.${config.addonRef}-popup-text-container`,
+    ) as HTMLDivElement | null;
+    if (container) {
+      syncPopupTextContainer(container, textarea);
+    }
   }
 }
 
