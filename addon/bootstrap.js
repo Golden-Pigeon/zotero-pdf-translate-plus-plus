@@ -6,11 +6,74 @@
  */
 
 var chromeHandle;
+var addonManager;
+var conflictListener;
+var pluginStarted = false;
+var shuttingDown = false;
+var conflictDetected = false;
+var conflictNotified = false;
+
+function isLegacyPluginEnabled(plugin) {
+  return (
+    plugin?.id === "zoteropdftranslate@euclpts.com" &&
+    !plugin.userDisabled &&
+    !plugin.appDisabled
+  );
+}
+
+function notifyPluginConflict() {
+  if (conflictNotified) return;
+  conflictNotified = true;
+  Zotero.uiReadyPromise.then(() => {
+    Zotero.alert(
+      Zotero.getMainWindow(),
+      "__addonName__",
+      "Translate for Zotero or Translate for Zotero++ 2.4.8 is enabled. " +
+        "Disable the old plugin, then enable Translate for Zotero++ and restart Zotero. " +
+        "Both plugins cannot run together. Your old settings will be preserved.",
+    );
+  });
+}
 
 function install(data, reason) {}
 
 async function startup({ id, version, resourceURI, rootURI }, reason) {
+  shuttingDown = false;
+  conflictDetected = false;
+  conflictNotified = false;
   await Zotero.initializationPromise;
+  if (shuttingDown) return;
+
+  ({ AddonManager: addonManager } = ChromeUtils.importESModule(
+    "resource://gre/modules/AddonManager.sys.mjs",
+  ));
+  const onLegacyEnabled = (plugin) => {
+    if (!isLegacyPluginEnabled(plugin) || shuttingDown) return;
+    conflictDetected = true;
+    if (pluginStarted) {
+      pluginStarted = false;
+      Zotero.__addonInstance__?.hooks.onShutdown();
+      addonManager
+        .getAddonByID(id)
+        .then((current) => current?.disable())
+        .catch((error) => Zotero.logError(error));
+    }
+    notifyPluginConflict();
+  };
+  conflictListener = {
+    onEnabling: onLegacyEnabled,
+    onEnabled: onLegacyEnabled,
+    onInstalled: onLegacyEnabled,
+  };
+  addonManager.addAddonListener(conflictListener);
+  const legacyPlugin = await addonManager.getAddonByID(
+    "zoteropdftranslate@euclpts.com",
+  );
+  if (shuttingDown) return;
+  if (conflictDetected || isLegacyPluginEnabled(legacyPlugin)) {
+    notifyPluginConflict();
+    return;
+  }
 
   // String 'rootURI' introduced in Zotero 7
   if (!rootURI) {
@@ -40,6 +103,7 @@ async function startup({ id, version, resourceURI, rootURI }, reason) {
     `${rootURI}/chrome/content/scripts/__addonRef__.js`,
     ctx,
   );
+  pluginStarted = true;
 }
 
 async function onMainWindowLoad({ window }, reason) {
@@ -51,6 +115,12 @@ async function onMainWindowUnload({ window }, reason) {
 }
 
 function shutdown({ id, version, resourceURI, rootURI }, reason) {
+  shuttingDown = true;
+  pluginStarted = false;
+  if (conflictListener) {
+    addonManager.removeAddonListener(conflictListener);
+    conflictListener = null;
+  }
   if (reason === APP_SHUTDOWN) {
     return;
   }

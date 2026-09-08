@@ -1,6 +1,7 @@
 import { BasicTool } from "zotero-plugin-toolkit";
 import Addon from "./addon";
 import { config } from "../package.json";
+import { migrateLegacyPreferences } from "./utils/migration";
 
 const basicTool = new BasicTool();
 
@@ -8,8 +9,10 @@ const basicTool = new BasicTool();
 if (!basicTool.getGlobal("Zotero")[config.addonInstance]) {
   // Set global variables
   _globalThis.Zotero = basicTool.getGlobal("Zotero");
+  defineGlobal("Services");
   defineGlobal("crypto");
   defineGlobal("TextEncoder");
+  migrateLegacyPreferences();
   _globalThis.addon = new Addon();
   defineGlobal("ztoolkit", () => {
     return _globalThis.addon.data.ztoolkit;

@@ -1,7 +1,8 @@
 import { defineConfig } from "zotero-plugin-scaffold";
 import pkg from "./package.json";
-import { copyFileSync, readFileSync } from "fs";
+import { copyFileSync, existsSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
+import legacyUpdate from "./updates/legacy-2.4.8.json";
 
 export default defineConfig({
   source: ["src", "addon"],
@@ -26,6 +27,15 @@ export default defineConfig({
       "build:copyAssets": (ctx) => {
         copyFileSync("LICENSE", join(ctx.dist, "addon", "LICENSE"));
         copyFileSync("README.md", join(ctx.dist, "addon", "README.md"));
+      },
+      "build:makeUpdateJSON": (ctx) => {
+        for (const name of ["update.json", "update-beta.json"]) {
+          const path = join(ctx.dist, name);
+          if (!existsSync(path)) continue;
+          const manifest = JSON.parse(readFileSync(path, "utf8"));
+          manifest.addons = { ...legacyUpdate.addons, ...manifest.addons };
+          writeFileSync(path, `${JSON.stringify(manifest, null, 2)}\n`);
+        }
       },
     },
     define: {
@@ -63,10 +73,12 @@ export default defineConfig({
   },
   release: {
     github: {
-      releaseNote: (ctx) =>
-        ctx.version === "2.4.8"
-          ? readFileSync("docs/releases/2.4.8.md", "utf8")
-          : ctx.release.changelog,
+      releaseNote: (ctx) => {
+        const path = `docs/releases/${ctx.version}.md`;
+        return existsSync(path)
+          ? readFileSync(path, "utf8")
+          : ctx.release.changelog;
+      },
     },
   },
 

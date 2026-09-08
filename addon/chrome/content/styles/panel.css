@@ -1,19 +1,19 @@
-translator-plugin-panel {
+__addonRef__-translator-panel {
   display: flex;
   flex-direction: column;
   gap: 6px;
   height: var(--details-height, 450px);
 }
 
-translator-plugin-panel linkset {
+__addonRef__-translator-panel linkset {
   display: none;
 }
 
-translator-plugin-panel .separator {
+__addonRef__-translator-panel .separator {
   border-top: var(--material-border);
 }
 
-translator-plugin-panel .icon-button {
+__addonRef__-translator-panel .icon-button {
   width: 24px;
   height: 24px;
   fill: var(--fill-secondary);
@@ -22,22 +22,22 @@ translator-plugin-panel .icon-button {
   list-style-image: url(chrome://__addonRef__/content/icons/swap.svg);
 }
 
-translator-plugin-panel #__addonRef__-translate {
+__addonRef__-translator-panel #__addonRef__-translate {
   flex: 1;
   min-width: auto;
 }
 
-translator-plugin-panel .lang-menulist {
+__addonRef__-translator-panel .lang-menulist {
   flex: 1;
 }
 
-translator-plugin-panel editable-text {
+__addonRef__-translator-panel editable-text {
   flex: 1;
   min-height: 100px;
 }
 
-/* Minimal styles for math-textbox to match editable-text without intruding */
-translator-plugin-panel math-textbox {
+/* Match editable-text layout while allowing a math overlay. */
+__addonRef__-translator-panel __addonRef__-math-textbox {
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -46,23 +46,25 @@ translator-plugin-panel math-textbox {
   position: relative;
 }
 
-translator-plugin-panel math-textbox editable-text {
+__addonRef__-translator-panel __addonRef__-math-textbox editable-text {
   flex: 1;
   min-height: 100px;
 }
 
-translator-plugin-panel math-textbox[overlay-visible] editable-text {
+__addonRef__-translator-panel
+  __addonRef__-math-textbox[overlay-visible]
+  editable-text {
   visibility: hidden;
 }
 
-translator-plugin-panel math-textbox .math-overlay {
+__addonRef__-translator-panel __addonRef__-math-textbox .math-overlay {
   position: absolute;
   inset: 0;
   overflow: auto;
   display: block; /* ensure layout box for HTML namespace */
 }
 
-translator-plugin-panel .editor-container {
+__addonRef__-translator-panel .editor-container {
   display: flex;
   flex: 1;
   min-height: 213px;
@@ -70,7 +72,7 @@ translator-plugin-panel .editor-container {
   position: relative;
 }
 
-translator-plugin-panel .draggable-container {
+__addonRef__-translator-panel .draggable-container {
   height: 13px;
   cursor: ns-resize;
   display: flex;
@@ -79,11 +81,11 @@ translator-plugin-panel .draggable-container {
   justify-content: center;
 }
 
-translator-plugin-panel .draggable-container[hidden] {
+__addonRef__-translator-panel .draggable-container[hidden] {
   display: none;
 }
 
-translator-plugin-panel .options-container {
+__addonRef__-translator-panel .options-container {
   display: grid;
   grid-template-columns: max-content 1fr;
   column-gap: 8px;
@@ -91,26 +93,26 @@ translator-plugin-panel .options-container {
   width: inherit;
 }
 
-translator-plugin-panel .options-grid:not([hidden]) {
+__addonRef__-translator-panel .options-grid:not([hidden]) {
   display: grid;
   grid-template-columns: subgrid;
   grid-column: span 2;
 }
 
-translator-plugin-panel .options-label {
+__addonRef__-translator-panel .options-label {
   display: flex;
   flex-direction: column;
   justify-content: center;
   color: var(--fill-secondary);
 }
 
-translator-plugin-panel .options-content {
+__addonRef__-translator-panel .options-content {
   display: flex;
   flex-direction: row;
   gap: 4px;
 }
 
-translator-plugin-panel #__addonRef__-copy-container button {
+__addonRef__-translator-panel #__addonRef__-copy-container button {
   min-width: auto;
   flex: 1;
 }

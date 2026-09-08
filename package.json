@@ -1,18 +1,19 @@
 {
   "name": "zotero-pdf-translate-plus-plus",
-  "version": "2.4.8",
+  "version": "2.4.9",
   "description": "Independently maintained Zotero translation plugin with reader popup math rendering and 20+ translation services.",
   "config": {
     "addonName": "Translate for Zotero++",
-    "addonID": "zoteropdftranslate@euclpts.com",
-    "addonRef": "zoteropdftranslate",
-    "prefsPrefix": "extensions.zotero.ZoteroPDFTranslate",
-    "addonInstance": "PDFTranslate"
+    "addonID": "zotero-pdf-translate-plus-plus@golden-pigeon",
+    "addonRef": "zoteropdftranslateplusplus",
+    "prefsPrefix": "extensions.zotero.ZoteroPDFTranslatePlusPlus",
+    "addonInstance": "PDFTranslatePlusPlus"
   },
   "main": "src/index.ts",
   "scripts": {
     "start": "zotero-plugin serve",
     "build": "tsc --noEmit && zotero-plugin build",
+    "check:release": "node scripts/verify-release.mjs",
     "release": "zotero-plugin release",
     "lint": "prettier --write . && eslint . --fix",
     "test": "zotero-plugin test",

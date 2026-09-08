@@ -22,12 +22,12 @@ export function registerReaderTabPanel() {
       // @ts-ignore
       orderable: false,
     },
-    bodyXHTML: "<translator-plugin-panel />",
+    bodyXHTML: `<${config.addonRef}-translator-panel />`,
     onInit,
     onDestroy,
     onRender: ({ body, item }) => {
       const panel = body.querySelector(
-        "translator-plugin-panel",
+        `${config.addonRef}-translator-panel`,
       ) as TranslatorPanel;
       panel.item = item;
       panel.render();
@@ -260,7 +260,7 @@ function onItemChange({
 function updateExtraPanel(container: HTMLElement | Document) {
   const lastTask = getLastTranslateTask();
   const panel = container.querySelector(
-    "translator-plugin-panel",
+    `${config.addonRef}-translator-panel`,
   ) as TranslatorPanel;
   if (panel) {
     panel.item = Zotero.Items.get(lastTask?.itemId || -1);

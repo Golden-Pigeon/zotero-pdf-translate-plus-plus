@@ -21,6 +21,7 @@ releasing these improvements independently.
 ## Links
 
 - [Download the latest release](https://github.com/Golden-Pigeon/zotero-pdf-translate-plus-plus/releases/latest)
+- [Migrate from the upstream plugin or version 2.4.8](docs/migration.md)
 - [Upstream repository: full feature documentation, usage, and configuration](https://github.com/windingwind/zotero-pdf-translate)
 - [Report an issue with this version](https://github.com/Golden-Pigeon/zotero-pdf-translate-plus-plus/issues)
 

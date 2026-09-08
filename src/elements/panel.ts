@@ -68,7 +68,7 @@ export class TranslatorPanel extends PluginCEBase {
 <html:div id="text-container" class="editor-container">
   ${
     (getPref("enableMathRendering") as boolean)
-      ? `<math-textbox id="raw-text"></math-textbox>`
+      ? `<${config.addonRef}-math-textbox id="raw-text"></${config.addonRef}-math-textbox>`
       : `<editable-text id="raw-text" multiline="true" />`
   }
   <html:div id="resizer" class="draggable-container">
@@ -76,7 +76,7 @@ export class TranslatorPanel extends PluginCEBase {
   </html:div>
   ${
     (getPref("enableMathRendering") as boolean)
-      ? `<math-textbox id="result-text"></math-textbox>`
+      ? `<${config.addonRef}-math-textbox id="result-text"></${config.addonRef}-math-textbox>`
       : `<editable-text id="result-text" multiline="true" />`
   }
 </html:div>

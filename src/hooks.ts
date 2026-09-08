@@ -35,6 +35,8 @@ async function onStartup() {
     Zotero.uiReadyPromise,
   ]);
 
+  if (!addon.data.alive) return;
+
   // TODO: Remove this after zotero#3387 is merged
   if (__env__ === "development") {
     // Keep in sync with the scripts/startup.mjs
@@ -84,6 +86,8 @@ async function onMainWindowLoad(win: Window): Promise<void> {
     Zotero.unlockPromise,
     Zotero.uiReadyPromise,
   ]);
+
+  if (!addon.data.alive) return;
 
   Services.scriptloader.loadSubScript(
     `chrome://${config.addonRef}/content/scripts/customElements.js`,

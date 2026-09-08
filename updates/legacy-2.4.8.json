@@ -1,0 +1,19 @@
+{
+  "addons": {
+    "zoteropdftranslate@euclpts.com": {
+      "updates": [
+        {
+          "version": "2.4.8",
+          "update_link": "https://github.com/Golden-Pigeon/zotero-pdf-translate-plus-plus/releases/download/v2.4.8/zotero-pdf-translate-plus-plus.xpi",
+          "update_hash": "sha512:2ad6749ac1a8925935ea71d9e9f9447674e64036c413617bb6dbf81079e763066bc30a077bf5af5c766e9054f237307b45bcd32063688548d741a2a8c796421d",
+          "applications": {
+            "zotero": {
+              "strict_min_version": "7.9.9",
+              "strict_max_version": "10.9.9"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

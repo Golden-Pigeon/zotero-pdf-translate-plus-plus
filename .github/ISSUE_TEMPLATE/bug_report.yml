@@ -4,7 +4,7 @@ title: "[Bug] "
 labels:
   - bug
   # - Needs Triage
-assignees: windingwind
+assignees: Golden-Pigeon
 body:
   - type: checkboxes
     id: check-search
@@ -27,10 +27,10 @@ body:
   - type: checkboxes
     id: check-version
     attributes:
-      label: Are you using the latest Zotero and the latest plugin?
-      description: Only bug reports that can be reproduced on the latest Zotero and plugin will be considered.
+      label: Are you using a supported Zotero version and the latest Translate for Zotero++?
+      description: This plugin currently supports Zotero 9.0.x. Please try the latest release from this repository and disable the upstream plugin before reporting an issue.
       options:
-        - label: I have confirmed I'm using the latest Zotero and the latest plugin
+        - label: I am using Zotero 9.0.x and the latest Translate for Zotero++, with the upstream plugin disabled
           required: true
 
   - type: textarea
@@ -39,8 +39,8 @@ body:
       description: |
         examples:
           - **OS**: Windows 11 22H2
-          - **Zotero Version**: 7.0.0
-          - **Plugin Version**: 1.0.0
+          - **Zotero Version**: 9.0.6
+          - **Plugin Version**: 2.4.9
       value: |
         - OS: 
         - Zotero Version: 

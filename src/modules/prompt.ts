@@ -1,4 +1,5 @@
 import { config } from "../../package.json";
+import { getPref } from "../utils/prefs";
 
 export function registerPrompt() {
   ztoolkit.Prompt.register([
@@ -7,30 +8,23 @@ export function registerPrompt() {
       label: config.addonInstance,
       when: () => {
         const selection = addon.data.translate.selectedText;
-        const sl = Zotero.Prefs.get(
-          "ZoteroPDFTranslate.sourceLanguage",
-        ) as string;
-        const tl = Zotero.Prefs.get(
-          "ZoteroPDFTranslate.targetLanguage",
-        ) as string;
+        const sl = getPref("sourceLanguage") as string;
+        const tl = getPref("targetLanguage") as string;
         return (
-          selection.length > 0 &&
-          Zotero?.PDFTranslate &&
-          sl.startsWith("en") &&
-          tl.startsWith("zh")
+          selection.length > 0 && sl.startsWith("en") && tl.startsWith("zh")
         );
       },
       callback: async (prompt) => {
         const selection = addon.data.translate.selectedText;
-        const queue = Zotero.PDFTranslate.data.translate.queue;
+        const queue = addon.data.translate.queue;
         let task = queue.find(
           (task: any) => task.raw == selection && task.result.length > 0,
         );
         task = undefined;
         if (!task) {
           prompt.showTip("Loading...");
-          task = await Zotero.PDFTranslate.api.translate(selection);
-          Zotero.PDFTranslate.data.translate.queue.push(task);
+          task = await addon.api.translate(selection);
+          addon.data.translate.queue.push(task);
           // eslint-disable-next-line @typescript-eslint/ban-ts-comment
           // @ts-ignore
           prompt.exit();

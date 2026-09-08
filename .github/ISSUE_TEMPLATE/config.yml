@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Documentation in Chinese (中文文档)
-    url: https://zotero.yuque.com/staff-gkhviy/pdf-trans
-    about: 如果你是中文用户，请先阅读中文文档。文档中已经说明的问题不会回复。
+  - name: Upstream documentation
+    url: https://github.com/windingwind/zotero-pdf-translate
+    about: See the upstream repository for full feature documentation, usage, and configuration.
+  - name: Migration to Translate for Zotero++
+    url: https://github.com/Golden-Pigeon/zotero-pdf-translate-plus-plus/blob/main/docs/migration.md
+    about: Install the independent plugin and migrate settings from the upstream plugin or version 2.4.8.

@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - v**
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag (for example, v2.4.9)
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -13,11 +19,13 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ secrets.GitHub_TOKEN }}
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -25,11 +33,19 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Verify release tag
+        run: |
+          node -e 'const expected = `v${require("./package.json").version}`; if (process.env.RELEASE_TAG !== expected) { throw new Error(`Release tag ${process.env.RELEASE_TAG} does not match ${expected}`); }'
+          test "$(git rev-parse --verify "refs/tags/$RELEASE_TAG^{commit}")" = "$(git rev-parse HEAD)"
+
       - name: Install deps
         run: npm ci
 
       - name: Build
         run: npm run build
+
+      - name: Verify release artifacts
+        run: npm run check:release
 
       - name: Release to GitHub
         run: npm run release
