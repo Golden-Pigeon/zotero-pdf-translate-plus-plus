@@ -1,3 +1,4 @@
+import { translationRequest } from "../../utils/http";
 import { getPref } from "../../utils/prefs";
 import { TranslateService } from "./base";
 
@@ -8,7 +9,7 @@ const translate = <TranslateService["translate"]>async function (data) {
     source_lang: data.langfrom.split("-")[0].toUpperCase(),
     target_lang: data.langto.split("-")[0].toUpperCase(),
   });
-  const xhr = await Zotero.HTTP.request("POST", url, {
+  const xhr = await translationRequest(data, "POST", url, {
     headers: {
       "Content-Type": "application/json; charset=utf-8",
     },

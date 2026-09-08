@@ -1,8 +1,10 @@
+import { translationRequest } from "../../utils/http";
 import { TranslateService } from "./base";
 
 const translate: TranslateService["translate"] = async function (data) {
   const param = `${transLang(data.langfrom)}2${transLang(data.langto)}`;
-  const xhr = await Zotero.HTTP.request(
+  const xhr = await translationRequest(
+    data,
     "POST",
     "http://api.interpreter.caiyunai.com/v1/translator",
     {

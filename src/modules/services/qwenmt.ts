@@ -1,3 +1,4 @@
+import { translationRequest } from "../../utils/http";
 import { getPref } from "../../utils/prefs";
 import { getString } from "../../utils/locale";
 import { TranslateService } from "./base";
@@ -26,7 +27,8 @@ const translate: TranslateService["translate"] = async function (data) {
     };
   };
 
-  const xhr = await Zotero.HTTP.request(
+  const xhr = await translationRequest(
+    data,
     "POST",
     `${apiURL}/v1/chat/completions`,
     {

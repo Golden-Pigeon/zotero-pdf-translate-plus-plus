@@ -1,3 +1,4 @@
+import { translationRequest } from "../../utils/http";
 import { getPref, transformPromptWithContext } from "../../utils";
 import { TranslateService } from "./base";
 import type { TranslateTask } from "../../utils/task";
@@ -30,7 +31,7 @@ const translate = <TranslateService["translate"]>async function (data) {
 
   const refreshHandler = addon.api.getTemporaryRefreshHandler({ task: data });
 
-  const xhr = await Zotero.HTTP.request("POST", getGenContentAPI(data), {
+  const xhr = await translationRequest(data, "POST", getGenContentAPI(data), {
     headers: {
       "Content-Type": "application/json",
     },

@@ -1,3 +1,4 @@
+import { translationRequest } from "../../utils/http";
 import { version } from "../../../package.json";
 import { TranslateService } from "./base";
 
@@ -33,7 +34,7 @@ function createDeepl(id: ID): TranslateService {
       }
 
       const [key, glossary_id]: string[] = data.secret.split("#");
-      const xhr = await Zotero.HTTP.request("POST", url, {
+      const xhr = await translationRequest(data, "POST", url, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `DeepL-Auth-Key ${key}`,

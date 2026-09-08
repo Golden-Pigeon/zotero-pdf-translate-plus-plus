@@ -1,5 +1,11 @@
 import { TranslateService } from "./base";
 import {
+  bindTranslationTask,
+  captureTranslationLifecycle,
+  isTranslationActive,
+  TranslationLifecycle,
+} from "../../utils/lifecycle";
+import {
   getString,
   getPref,
   getLastTranslateTask,
@@ -100,8 +106,9 @@ const register: TranslateService[] = [
 ];
 
 export class TranslationServices {
+  #lifecycle?: TranslationLifecycle;
   #services: readonly TranslateService[] = Object.freeze(
-    this.sortServices(register),
+    this.sortServices([...register]),
   );
 
   /**
@@ -242,6 +249,10 @@ export class TranslationServices {
       noCache?: boolean;
     } = {},
   ): Promise<boolean> {
+    const lifecycle = (this.#lifecycle ??= captureTranslationLifecycle(addon));
+    if (!isTranslationActive(lifecycle)) return false;
+    const owner = lifecycle.owner;
+    const ztoolkit = owner.data.ztoolkit;
     ztoolkit.log("runTranslationTask", options);
     const { noCache, noCheckZoteroItemLanguage, noDisplay } = options;
 
@@ -250,6 +261,7 @@ export class TranslationServices {
       ztoolkit.log("skipped empty");
       return false;
     }
+    if (!bindTranslationTask(task, lifecycle)) return false;
     task.status = "processing" as TranslateTask["status"];
     // Check whether item language is in disabled languages list
     let disabledByItemLanguage = false;
@@ -283,13 +295,13 @@ export class TranslationServices {
     task.result = "";
     // Display raw
     if (!noDisplay) {
-      addon.api.getTemporaryRefreshHandler()();
+      owner.api.getTemporaryRefreshHandler()();
     }
 
     let cacheHit = false;
     if (!noCache) {
       // Check cache
-      const cachedTask = addon.data.translate.queue.findLast((_t) => {
+      const cachedTask = owner.data.translate.queue.findLast((_t) => {
         return (
           _t.status === "success" &&
           _t.raw === task!.raw &&
@@ -307,7 +319,7 @@ export class TranslationServices {
         task.status = "success";
 
         if (!noDisplay) {
-          addon.api.getTemporaryRefreshHandler()();
+          owner.api.getTemporaryRefreshHandler()();
         }
       }
     }
@@ -324,6 +336,9 @@ export class TranslationServices {
       // Run task
       const runner = new TranslateTaskRunner(service.translate);
       await runner.run(task);
+      if (!isTranslationActive(lifecycle) || task.status === "cancelled") {
+        return false;
+      }
 
       // Apply strip empty lines if enabled
       const stripEnabled = getPref("stripEmptyLines") as boolean;
@@ -352,9 +367,15 @@ export class TranslationServices {
               noDisplay: true,
             });
           }),
-        ).then(() => {
-          addon.hooks.onReaderTabPanelRefresh();
-        });
+        )
+          .then(() => {
+            if (isTranslationActive(lifecycle)) {
+              owner.hooks.onReaderTabPanelRefresh();
+            }
+          })
+          .catch((error) => {
+            if (isTranslationActive(lifecycle)) ztoolkit.log(error);
+          });
       }
       // Try candidate services if current run fails
       if (task.status === "fail" && task.candidateServices.length > 0) {
@@ -364,11 +385,12 @@ export class TranslationServices {
       } else {
         // Display result
         if (!noDisplay) {
-          addon.api.getTemporaryRefreshHandler()();
+          owner.api.getTemporaryRefreshHandler()();
         }
       }
     }
 
+    if (!isTranslationActive(lifecycle)) return false;
     const success = task.status === "success";
     const item = Zotero.Items.get(task.itemId!);
     // Data storage for corresponding types

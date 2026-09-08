@@ -1,5 +1,13 @@
+import { translationRequest } from "../../utils/http";
 import { aesEcbDecrypt, aesEcbEncrypt, base64 } from "../../utils/crypto";
 import { TranslateService } from "./base";
+import {
+  assertTranslationActive,
+  getTaskLifecycle,
+  TranslationCancelledError,
+  TranslationLifecycle,
+  translationDelay,
+} from "../../utils/lifecycle";
 
 const LI = "6dVjYLFyzfkFkk";
 const AUTH_USER = "key_web_new_fanyi";
@@ -17,20 +25,22 @@ type IcibaResponse = {
 
 async function requestWithRetry<T>(
   fn: () => Promise<T>,
+  lifecycle: TranslationLifecycle,
   retries = MAX_RETRIES,
 ) {
   let lastError: unknown;
   for (let attempt = 0; attempt <= retries; attempt++) {
+    assertTranslationActive(lifecycle);
     try {
       return await fn();
     } catch (e) {
+      if (e instanceof TranslationCancelledError) throw e;
+      assertTranslationActive(lifecycle);
       lastError = e;
       if (attempt === retries) {
         throw e;
       }
-      await new Promise((resolve) =>
-        setTimeout(resolve, RETRY_DELAY_MS * (attempt + 1)),
-      );
+      await translationDelay(RETRY_DELAY_MS * (attempt + 1), lifecycle);
     }
   }
   throw lastError;
@@ -69,7 +79,13 @@ function languageCode(lang: string) {
   return lang.toLowerCase().split("-")[0];
 }
 
-async function translateChunk(text: string, langFrom: string, langTo: string) {
+async function translateChunk(
+  text: string,
+  langFrom: string,
+  langTo: string,
+  lifecycle: TranslationLifecycle,
+) {
+  assertTranslationActive(lifecycle);
   const signSeed = Zotero.Utilities.Internal.md5(
     `${CLIENT}${AUTH_USER}${LI}${text}`,
     false,
@@ -79,20 +95,23 @@ async function translateChunk(text: string, langFrom: string, langTo: string) {
     langTo,
   )}&q=${encodeURIComponent(text)}`;
 
-  const xhr = await requestWithRetry(() =>
-    Zotero.HTTP.request(
-      "POST",
-      `https://ifanyi.iciba.com/index.php?c=trans&m=fy&client=${CLIENT}&auth_user=${AUTH_USER}&sign=${encodeURIComponent(
-        sign,
-      )}`,
-      {
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
+  const xhr = await requestWithRetry(
+    () =>
+      translationRequest(
+        lifecycle,
+        "POST",
+        `https://ifanyi.iciba.com/index.php?c=trans&m=fy&client=${CLIENT}&auth_user=${AUTH_USER}&sign=${encodeURIComponent(
+          sign,
+        )}`,
+        {
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body,
+          responseType: "json",
         },
-        body,
-        responseType: "json",
-      },
-    ),
+      ),
+    lifecycle,
   );
 
   if (xhr?.status !== 200) {
@@ -115,6 +134,7 @@ async function translateChunk(text: string, langFrom: string, langTo: string) {
 }
 
 const translate: TranslateService["translate"] = async function (data) {
+  const lifecycle = getTaskLifecycle(data);
   const query = data.raw.trim();
   const from = languageCode(data.langfrom);
   const to = languageCode(data.langto);
@@ -125,7 +145,7 @@ const translate: TranslateService["translate"] = async function (data) {
   }
 
   if (query.length <= CHUNK_SIZE) {
-    data.result = await translateChunk(query, from, to);
+    data.result = await translateChunk(query, from, to, lifecycle);
     return;
   }
 
@@ -135,6 +155,7 @@ const translate: TranslateService["translate"] = async function (data) {
       query.slice(i, i + CHUNK_SIZE),
       from,
       to,
+      lifecycle,
     );
     data.result = translated;
     addon.api.getTemporaryRefreshHandler({ task: data })();

@@ -1,3 +1,4 @@
+import { translationRequest } from "../../utils/http";
 import { TranslateService } from "./base";
 
 const translate = <TranslateService["translate"]>async function (data) {
@@ -14,7 +15,8 @@ const translate = <TranslateService["translate"]>async function (data) {
     const region = params[1].replace(" ", "").toLowerCase();
     if (params[1] != "global") headers["Ocp-Apim-Subscription-Region"] = region;
   }
-  const xhr = await Zotero.HTTP.request(
+  const xhr = await translationRequest(
+    data,
     "POST",
     `https://api.cognitive.microsofttranslator.com/translate?api-version=3.0&to=${data.langto}`,
     {

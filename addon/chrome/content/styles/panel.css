@@ -1,19 +1,19 @@
-__addonRef__-translator-panel {
+__panelTag__ {
   display: flex;
   flex-direction: column;
   gap: 6px;
   height: var(--details-height, 450px);
 }
 
-__addonRef__-translator-panel linkset {
+__panelTag__ linkset {
   display: none;
 }
 
-__addonRef__-translator-panel .separator {
+__panelTag__ .separator {
   border-top: var(--material-border);
 }
 
-__addonRef__-translator-panel .icon-button {
+__panelTag__ .icon-button {
   width: 24px;
   height: 24px;
   fill: var(--fill-secondary);
@@ -22,22 +22,22 @@ __addonRef__-translator-panel .icon-button {
   list-style-image: url(chrome://__addonRef__/content/icons/swap.svg);
 }
 
-__addonRef__-translator-panel #__addonRef__-translate {
+__panelTag__ #__addonRef__-translate {
   flex: 1;
   min-width: auto;
 }
 
-__addonRef__-translator-panel .lang-menulist {
+__panelTag__ .lang-menulist {
   flex: 1;
 }
 
-__addonRef__-translator-panel editable-text {
+__panelTag__ editable-text {
   flex: 1;
   min-height: 100px;
 }
 
 /* Match editable-text layout while allowing a math overlay. */
-__addonRef__-translator-panel __addonRef__-math-textbox {
+__panelTag__ __mathTag__ {
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -46,25 +46,23 @@ __addonRef__-translator-panel __addonRef__-math-textbox {
   position: relative;
 }
 
-__addonRef__-translator-panel __addonRef__-math-textbox editable-text {
+__panelTag__ __mathTag__ editable-text {
   flex: 1;
   min-height: 100px;
 }
 
-__addonRef__-translator-panel
-  __addonRef__-math-textbox[overlay-visible]
-  editable-text {
+__panelTag__ __mathTag__[overlay-visible] editable-text {
   visibility: hidden;
 }
 
-__addonRef__-translator-panel __addonRef__-math-textbox .math-overlay {
+__panelTag__ __mathTag__ .math-overlay {
   position: absolute;
   inset: 0;
   overflow: auto;
   display: block; /* ensure layout box for HTML namespace */
 }
 
-__addonRef__-translator-panel .editor-container {
+__panelTag__ .editor-container {
   display: flex;
   flex: 1;
   min-height: 213px;
@@ -72,7 +70,7 @@ __addonRef__-translator-panel .editor-container {
   position: relative;
 }
 
-__addonRef__-translator-panel .draggable-container {
+__panelTag__ .draggable-container {
   height: 13px;
   cursor: ns-resize;
   display: flex;
@@ -81,11 +79,11 @@ __addonRef__-translator-panel .draggable-container {
   justify-content: center;
 }
 
-__addonRef__-translator-panel .draggable-container[hidden] {
+__panelTag__ .draggable-container[hidden] {
   display: none;
 }
 
-__addonRef__-translator-panel .options-container {
+__panelTag__ .options-container {
   display: grid;
   grid-template-columns: max-content 1fr;
   column-gap: 8px;
@@ -93,26 +91,26 @@ __addonRef__-translator-panel .options-container {
   width: inherit;
 }
 
-__addonRef__-translator-panel .options-grid:not([hidden]) {
+__panelTag__ .options-grid:not([hidden]) {
   display: grid;
   grid-template-columns: subgrid;
   grid-column: span 2;
 }
 
-__addonRef__-translator-panel .options-label {
+__panelTag__ .options-label {
   display: flex;
   flex-direction: column;
   justify-content: center;
   color: var(--fill-secondary);
 }
 
-__addonRef__-translator-panel .options-content {
+__panelTag__ .options-content {
   display: flex;
   flex-direction: row;
   gap: 4px;
 }
 
-__addonRef__-translator-panel #__addonRef__-copy-container button {
+__panelTag__ #__addonRef__-copy-container button {
   min-width: auto;
   flex: 1;
 }

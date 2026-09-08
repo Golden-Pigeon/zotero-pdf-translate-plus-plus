@@ -1,10 +1,12 @@
+import { translationRequest } from "../../utils/http";
 import { TranslateService } from "./base";
 
 const translate: TranslateService["translate"] = async (data) => {
   const [services, apikey] = data.secret.split("#");
   const serviceList = services.split(",");
 
-  const xhr = await Zotero.HTTP.request(
+  const xhr = await translationRequest(
+    data,
     "POST",
     "https://api.openl.club/group/translate",
     {

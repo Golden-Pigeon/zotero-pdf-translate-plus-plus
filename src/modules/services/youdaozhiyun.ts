@@ -1,3 +1,4 @@
+import { translationRequest } from "../../utils/http";
 import { hex, sha256Digest } from "../../utils/crypto";
 import { getPref } from "../../utils/prefs";
 import { TranslateService } from "./base";
@@ -29,7 +30,8 @@ const translate: TranslateService["translate"] = async function (data) {
   const sign = hex(await sha256Digest(str1));
   const domain = getPref("youdaozhiyun.domain") as string;
 
-  const xhr = await Zotero.HTTP.request(
+  const xhr = await translationRequest(
+    data,
     "GET",
     `https://openapi.youdao.com/api?q=${encodeRFC5987ValueChars(
       query,

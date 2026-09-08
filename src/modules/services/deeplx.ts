@@ -1,3 +1,4 @@
+import { translationRequest } from "../../utils/http";
 import { getPref } from "../../utils/prefs";
 import { TranslateService } from "./base";
 
@@ -37,7 +38,8 @@ const translate = <TranslateService["translate"]>async function (data) {
   } else {
     reqBody = reqBody.replace('"method":"', '"method": "');
   }
-  const xhr = await Zotero.HTTP.request(
+  const xhr = await translationRequest(
+    data,
     "POST",
     `${url}?client=chrome-extension,1.28.0&method=LMT_handle_jobs`,
     {

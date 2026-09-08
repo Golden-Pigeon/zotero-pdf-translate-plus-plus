@@ -1,3 +1,4 @@
+import { translationRequest } from "../../utils/http";
 import { getPref } from "../../utils/prefs";
 import { TranslateService } from "./base";
 
@@ -19,7 +20,7 @@ const translate = <TranslateService["translate"]>async function (data) {
     requestBody.api_key = apiKey;
   }
 
-  const xhr = await Zotero.HTTP.request("POST", `${endpoint}/translate`, {
+  const xhr = await translationRequest(data, "POST", `${endpoint}/translate`, {
     headers: {
       "Content-Type": "application/json",
     },

@@ -1,3 +1,4 @@
+import { translationRequest } from "../../utils/http";
 /**
  * Example Translation Service Template
  *
@@ -103,13 +104,18 @@ export const ExampleTranslationService: TranslateService = {
     const option1 = getPref("options1");
 
     // Send request to translation API
-    const xhr = await Zotero.HTTP.request("POST", "https://example.com/api/", {
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
+    const xhr = await translationRequest(
+      data,
+      "POST",
+      "https://example.com/api/",
+      {
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: "",
+        responseType: "json",
       },
-      body: "",
-      responseType: "json",
-    });
+    );
 
     // Handle HTTP errors
     if (xhr?.status !== 200) {

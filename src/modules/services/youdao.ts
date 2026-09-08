@@ -1,3 +1,4 @@
+import { translationRequest } from "../../utils/http";
 import { TranslateService } from "./base";
 
 // Lang code map for the Youdao web demo API (https://fanyi.youdao.com, backed
@@ -18,7 +19,8 @@ const translate: TranslateService["translate"] = async function (data) {
     to: mapLang(data.langto),
     q: data.raw,
   });
-  const xhr = await Zotero.HTTP.request(
+  const xhr = await translationRequest(
+    data,
     "POST",
     "https://aidemo.youdao.com/trans",
     {

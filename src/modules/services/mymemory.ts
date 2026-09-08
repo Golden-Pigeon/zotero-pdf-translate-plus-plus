@@ -1,3 +1,5 @@
+import { translationRequest } from "../../utils/http";
+import { getTaskLifecycle, translationDelay } from "../../utils/lifecycle";
 import { getPref } from "../../utils/prefs";
 import { TranslateService } from "./base";
 
@@ -12,7 +14,8 @@ const translate: TranslateService["translate"] = async (data) => {
   const deParam = isValidEmail ? `&de=${encodeURIComponent(userEmail)}` : "";
 
   const processTranslation = async (text: string) => {
-    const xhr = await Zotero.HTTP.request(
+    const xhr = await translationRequest(
+      data,
       "POST",
       `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${data.langfrom}|${data.langto}${deParam}`,
       {
@@ -71,7 +74,7 @@ const translate: TranslateService["translate"] = async (data) => {
     translatedText += (await processTranslation(chunk)) + " ";
     data.result = translatedText.trim();
     addon.api.getTemporaryRefreshHandler({ task: data })();
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await translationDelay(1000, getTaskLifecycle(data));
   }
 };
 

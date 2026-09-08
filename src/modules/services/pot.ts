@@ -1,9 +1,11 @@
+import { translationRequest } from "../../utils/http";
 import { getPref } from "../../utils/prefs";
 import { TranslateService } from "./base";
 
 const translate: TranslateService["translate"] = async (data) => {
   const port = getPref("pot.port");
-  const xhr = await Zotero.HTTP.request(
+  const xhr = await translationRequest(
+    data,
     "POST",
     `http://127.0.0.1:${port}/translate`,
     {

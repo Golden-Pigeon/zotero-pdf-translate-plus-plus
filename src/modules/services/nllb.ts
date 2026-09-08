@@ -1,3 +1,4 @@
+import { translationRequest } from "../../utils/http";
 import { getPref } from "../../utils/prefs";
 import { getString } from "../../utils/locale";
 import { TranslateService } from "./base";
@@ -26,20 +27,25 @@ const translate: TranslateService["translate"] = async (data) => {
       };
     };
 
-    const xhr = await Zotero.HTTP.request("POST", `${serveurl}/translate`, {
-      headers: {
-        "content-type": "application/json",
+    const xhr = await translationRequest(
+      data,
+      "POST",
+      `${serveurl}/translate`,
+      {
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          source: data.raw,
+          src_lang: mapLang(data.langfrom),
+          tgt_lang: mapLang(data.langto),
+        }),
+        responseType: "text",
+        requestObserver: (xmlhttp: XMLHttpRequest) => {
+          nonStreamCallback(xmlhttp);
+        },
       },
-      body: JSON.stringify({
-        source: data.raw,
-        src_lang: mapLang(data.langfrom),
-        tgt_lang: mapLang(data.langto),
-      }),
-      responseType: "text",
-      requestObserver: (xmlhttp: XMLHttpRequest) => {
-        nonStreamCallback(xmlhttp);
-      },
-    });
+    );
     if (xhr?.status !== 200) {
       throw `Request error: ${xhr?.status}`;
     }
@@ -88,7 +94,8 @@ const translate: TranslateService["translate"] = async (data) => {
     const stream = apistream ? "/stream" : "";
     const responseType = apistream ? "text" : "json";
 
-    const xhr = await Zotero.HTTP.request(
+    const xhr = await translationRequest(
+      data,
       "GET",
       `${apiurl}/api/v4/translator${stream}?text=${data.raw}&source=${mapLang(data.langfrom)}&target=${mapLang(data.langto)}`,
       {

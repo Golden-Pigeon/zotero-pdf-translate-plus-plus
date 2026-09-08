@@ -1,31 +1,43 @@
+import { translationRequest } from "../../utils/http";
 import { aesEcbEncrypt, base64 } from "../../utils/crypto";
 import { getPref, getPrefJSON, setPref } from "../../utils/prefs";
 import { TranslateService } from "./base";
+import {
+  assertTranslationActive,
+  captureTranslationLifecycle,
+  getTaskLifecycle,
+  TranslationCancelledError,
+  translationDelay,
+  TranslationLifecycle,
+} from "../../utils/lifecycle";
 
 async function requestWithRetry<T>(
   fn: () => Promise<T>,
   retries: number,
   baseDelayMs: number,
+  lifecycle: TranslationLifecycle,
 ) {
   let lastError: unknown;
   for (let attempt = 0; attempt <= retries; attempt++) {
+    assertTranslationActive(lifecycle);
     try {
       return await fn();
     } catch (e) {
+      if (e instanceof TranslationCancelledError) throw e;
+      assertTranslationActive(lifecycle);
       lastError = e;
       if (attempt === retries) {
         ztoolkit.log(`CNKI request failed after ${retries + 1} attempts`, e);
         throw e;
       }
-      await new Promise((resolve) =>
-        setTimeout(resolve, baseDelayMs * (attempt + 1)),
-      );
+      await translationDelay(baseDelayMs * (attempt + 1), lifecycle);
     }
   }
   throw lastError;
 }
 
 const translate = <TranslateService["translate"]>async function (data) {
+  const lifecycle = getTaskLifecycle(data);
   let progressWindow;
   const useSplit = getPref("cnkiUseSplit") as boolean;
   const splitSecond = getPref("cnkiSplitSecond") as number;
@@ -34,10 +46,11 @@ const translate = <TranslateService["translate"]>async function (data) {
   }
 
   const processTranslation = async (text: string) => {
-    const token = await getToken();
+    const token = await getToken(false, lifecycle);
     const xhr = await requestWithRetry(
       async () =>
-        Zotero.HTTP.request(
+        translationRequest(
+          data,
           "POST",
           "https://dict.cnki.net/fyzs-front-api/translate/literaltranslation",
           {
@@ -54,6 +67,7 @@ const translate = <TranslateService["translate"]>async function (data) {
         ),
       2,
       500,
+      lifecycle,
     );
 
     if (xhr.response.data?.isInputVerificationCode) {
@@ -89,7 +103,7 @@ const translate = <TranslateService["translate"]>async function (data) {
       translatedText += (await processTranslation(chunk)) + " ";
       data.result = translatedText.trim();
       addon.api.getTemporaryRefreshHandler({ task: data })();
-      await new Promise((resolve) => setTimeout(resolve, splitSecond * 1000));
+      await translationDelay(splitSecond * 1000, lifecycle);
     }
     // data.result = translatedText.trim();
   } else {
@@ -106,7 +120,11 @@ const translate = <TranslateService["translate"]>async function (data) {
   }
 };
 
-export async function getToken(forceRefresh: boolean = false) {
+export async function getToken(
+  forceRefresh: boolean = false,
+  lifecycle = captureTranslationLifecycle(addon),
+) {
+  assertTranslationActive(lifecycle);
   let token = "";
   // Just in case the update fails
   let doRefresh = true;
@@ -126,7 +144,8 @@ export async function getToken(forceRefresh: boolean = false) {
   if (doRefresh) {
     const xhr = await requestWithRetry(
       () =>
-        Zotero.HTTP.request(
+        translationRequest(
+          lifecycle,
           "GET",
           "https://dict.cnki.net/fyzs-front-api/getToken",
           {
@@ -135,7 +154,9 @@ export async function getToken(forceRefresh: boolean = false) {
         ),
       2,
       300,
+      lifecycle,
     );
+    assertTranslationActive(lifecycle);
     if (xhr && xhr.response && xhr.response.code === 200) {
       token = xhr.response.data;
       setPref(

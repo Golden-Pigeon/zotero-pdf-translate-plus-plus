@@ -1,7 +1,9 @@
+import { translationRequest } from "../../utils/http";
 import { TranslateService } from "./base";
 
 const translate: TranslateService["translate"] = async function (data) {
-  const xhr = await Zotero.HTTP.request(
+  const xhr = await translationRequest(
+    data,
     "GET",
     `https://ejje.weblio.jp/content/${encodeURIComponent(data.raw)}/`,
     { responseType: "text" },

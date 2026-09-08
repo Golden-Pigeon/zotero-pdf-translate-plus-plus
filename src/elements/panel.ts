@@ -2,6 +2,7 @@ import { config } from "../../package.json";
 import { PluginCEBase } from "./base";
 import { getPref, setPref } from "../utils/prefs";
 import { LANG_CODE } from "../utils/config";
+import { mathTag } from "../utils/elementNames";
 import {
   addTranslateTask,
   autoDetectLanguage,
@@ -10,14 +11,14 @@ import {
 } from "../utils/task";
 import type { TranslationServices } from "../modules/services";
 
-//@ts-expect-error addon instance not typed
-const services = Zotero[config.addonInstance].data.translate
-  .services as TranslationServices;
-
 export class TranslatorPanel extends PluginCEBase {
   _item: Zotero.Item | null = null;
 
   _taskID = "";
+
+  private get _services(): TranslationServices {
+    return this._addon.data.translate.services;
+  }
 
   get item() {
     return this._item;
@@ -28,6 +29,7 @@ export class TranslatorPanel extends PluginCEBase {
   }
 
   get content() {
+    const services = this._services;
     return this._parseContentID(
       MozXULElement.parseXULToFragment(`
 <linkset>
@@ -68,7 +70,7 @@ export class TranslatorPanel extends PluginCEBase {
 <html:div id="text-container" class="editor-container">
   ${
     (getPref("enableMathRendering") as boolean)
-      ? `<${config.addonRef}-math-textbox id="raw-text"></${config.addonRef}-math-textbox>`
+      ? `<${mathTag} id="raw-text"></${mathTag}>`
       : `<editable-text id="raw-text" multiline="true" />`
   }
   <html:div id="resizer" class="draggable-container">
@@ -76,7 +78,7 @@ export class TranslatorPanel extends PluginCEBase {
   </html:div>
   ${
     (getPref("enableMathRendering") as boolean)
-      ? `<${config.addonRef}-math-textbox id="result-text"></${config.addonRef}-math-textbox>`
+      ? `<${mathTag} id="result-text"></${mathTag}>`
       : `<editable-text id="result-text" multiline="true" />`
   }
 </html:div>
@@ -355,7 +357,7 @@ export class TranslatorPanel extends PluginCEBase {
     const menuItems = menuPopup.querySelectorAll("menuitem");
     const hideUnconfigured = getPref("hideUnconfiguredServices") as boolean;
     const unconfiguredIds = hideUnconfigured
-      ? services.getUnconfiguredServiceIds()
+      ? this._services.getUnconfiguredServiceIds()
       : null;
 
     menuItems.forEach((item) => {

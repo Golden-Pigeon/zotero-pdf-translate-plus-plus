@@ -1,3 +1,4 @@
+import { translationRequest } from "../../utils/http";
 import { getString } from "../../utils";
 import { base64, hmacSha256Digest, sha256Digest } from "../../utils/crypto";
 import { getPref } from "../../utils/prefs";
@@ -99,7 +100,7 @@ const translate: TranslateService["translate"] = async function (data) {
     return authorizationOrigin;
   }
 
-  const xhr = await Zotero.HTTP.request("POST", options.url, {
+  const xhr = await translationRequest(data, "POST", options.url, {
     headers: options.headers,
     responseType: "json",
     body: JSON.stringify(options.body),

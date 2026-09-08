@@ -1,3 +1,4 @@
+import { translationRequest } from "../../utils/http";
 import { base64, hmacSha1Digest } from "../../utils/crypto";
 import { TranslateService } from "./base";
 import { getPref, setPref } from "../../utils/prefs";
@@ -92,7 +93,8 @@ const translate: TranslateService["translate"] = async (data) => {
     ),
   );
 
-  const xhr = await Zotero.HTTP.request(
+  const xhr = await translationRequest(
+    data,
     "POST",
     "https://tmt.tencentcloudapi.com",
     {

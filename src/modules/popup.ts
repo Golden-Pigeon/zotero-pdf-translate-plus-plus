@@ -4,7 +4,16 @@ import { getString } from "../utils/locale";
 import { getPref, setPref } from "../utils/prefs";
 import { addTranslateTask, getLastTranslateTask } from "../utils/task";
 import { slice } from "../utils/str";
-import { getMathOverlayState, renderMathInText } from "../utils/mathRenderer";
+import {
+  getMathOverlayState,
+  renderMathInText,
+  shouldRenderMath,
+} from "../utils/mathRenderer";
+import { ensureMathStyles, MATH_ROOT_CLASS } from "../utils/mathStyles";
+import {
+  captureTranslationLifecycle,
+  isTranslationActive,
+} from "../utils/lifecycle";
 
 const popupMathOverlayFrames = new WeakMap<HTMLDivElement, number>();
 const popupTaskMaxWidths = new Map<string, number>();
@@ -144,10 +153,10 @@ export function updateReaderPopup() {
 export function buildReaderPopup(
   event: _ZoteroTypes.Reader.EventParams<"renderTextSelectionPopup">,
 ) {
+  const lifecycle = captureTranslationLifecycle();
   const { reader, doc, append } = event;
   const annotation = event.params.annotation;
   const popup = doc.querySelector(".selection-popup") as HTMLDivElement;
-  ensurePopupMathStyles(doc);
   addon.data.popup.currentPopup = popup;
   popup.style.maxWidth = "none";
   popup.setAttribute(
@@ -320,7 +329,10 @@ export function buildReaderPopup(
               tag: "div",
               namespace: "html",
               id: makeId("math-overlay"),
-              classList: [`${config.addonRef}-popup-math-overlay`],
+              classList: [
+                `${config.addonRef}-popup-math-overlay`,
+                MATH_ROOT_CLASS,
+              ],
               styles: {
                 display: "none",
                 position: "absolute",
@@ -384,6 +396,7 @@ export function buildReaderPopup(
             {
               type: "click",
               listener: async (ev) => {
+                if (!isTranslationActive(lifecycle)) return;
                 const noteEditor =
                   ZoteroContextPane && ZoteroContextPane.activeEditor;
                 if (!noteEditor) {
@@ -401,11 +414,14 @@ export function buildReaderPopup(
                 if (!task) {
                   return;
                 }
-                await addon.hooks.onTranslate(task, {
+                await lifecycle.owner.hooks.onTranslate(task, {
                   noCheckZoteroItemLanguage: true,
                   noDisplay: true,
                 });
-                if (task.status !== "success") {
+                if (
+                  !isTranslationActive(lifecycle) ||
+                  task.status !== "success"
+                ) {
                   return;
                 }
                 const replaceMode = getPref("enableNoteReplaceMode") as boolean;
@@ -544,18 +560,6 @@ function syncPopupTextContainer(
   container.style.height = textarea.style.height;
 }
 
-function ensurePopupMathStyles(doc: Document): void {
-  const id = `${config.addonRef}-popup-math-styles`;
-  if (doc.getElementById(id)) {
-    return;
-  }
-  const link = doc.createElement("link");
-  link.id = id;
-  link.rel = "stylesheet";
-  link.href = `chrome://${config.addonRef}/content/styles/katex.min.css`;
-  doc.head?.append(link);
-}
-
 function updatePopupMathOverlay(
   overlay: HTMLDivElement,
   container: HTMLDivElement,
@@ -567,10 +571,13 @@ function updatePopupMathOverlay(
     enabled,
     hiddenByPreference: container.hidden,
   });
-  if (state.overlayDisplay === "none") {
+  if (
+    state.overlayDisplay === "none" ||
+    !ensureMathStyles(overlay.ownerDocument)
+  ) {
     cancelPopupMathOverlayRender(overlay);
     overlay.innerHTML = "";
-    overlay.style.display = state.overlayDisplay;
+    overlay.style.display = "none";
     textarea.style.removeProperty("visibility");
     return;
   }
@@ -591,8 +598,24 @@ function schedulePopupMathOverlayRender(
   if (popupMathOverlayFrames.has(overlay)) {
     return;
   }
+  const lifecycle = captureTranslationLifecycle();
   const render = () => {
     popupMathOverlayFrames.delete(overlay);
+    if (!isTranslationActive(lifecycle)) return;
+    if (
+      !overlay.isConnected ||
+      container.hidden ||
+      !shouldRenderMath(
+        textarea.value,
+        getPref("enableMathRendering") === true,
+      ) ||
+      !ensureMathStyles(overlay.ownerDocument)
+    ) {
+      overlay.innerHTML = "";
+      overlay.style.display = "none";
+      textarea.style.removeProperty("visibility");
+      return;
+    }
     overlay.innerHTML = renderMathInText(overlay.ownerDocument, textarea.value);
     syncPopupRenderedTextContainer(container, textarea, overlay);
   };

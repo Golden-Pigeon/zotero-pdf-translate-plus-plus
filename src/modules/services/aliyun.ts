@@ -1,3 +1,4 @@
+import { translationRequest } from "../../utils/http";
 import { TranslateService } from "./base";
 import { getPref } from "../../utils/prefs";
 import { base64, hmacSha1Digest, randomString } from "../../utils/crypto";
@@ -24,7 +25,7 @@ const translate: TranslateService["translate"] = async (data) => {
     await hmacSha1Digest(stringToSign, `${accessKeySecret}&`),
   );
 
-  const xhr = await Zotero.HTTP.request("POST", endpoint, {
+  const xhr = await translationRequest(data, "POST", endpoint, {
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
     },

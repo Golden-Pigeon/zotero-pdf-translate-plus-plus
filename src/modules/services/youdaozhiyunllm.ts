@@ -1,3 +1,4 @@
+import { translationRequest } from "../../utils/http";
 import { hex, sha256Digest } from "../../utils/crypto";
 import { getPref } from "../../utils/prefs";
 import { getString } from "../../utils/locale";
@@ -128,7 +129,8 @@ const translate: TranslateService["translate"] = async function (data) {
     };
   };
 
-  const xhr = await Zotero.HTTP.request(
+  const xhr = await translationRequest(
+    data,
     "POST",
     `https://openapi.youdao.com/llm_trans?i=${encodeURIComponent(query)}&appKey=${appid}&salt=${salt}&from=${from}&to=${to}&sign=${sign}&signType=v3&curtime=${curtime}&handleOption=${model}&prompt=${encodeURIComponent(prompt)}&streamType=${streamType}`,
     {

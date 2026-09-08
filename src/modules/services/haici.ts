@@ -1,10 +1,17 @@
+import { translationRequest } from "../../utils/http";
 import { getPrefJSON, setPref } from "../../utils/prefs";
 import { TranslateService } from "./base";
+import {
+  assertTranslationActive,
+  captureTranslationLifecycle,
+  getTaskLifecycle,
+} from "../../utils/lifecycle";
 
 const translate = <TranslateService["translate"]>async function (data) {
-  const xhr = await Zotero.HTTP.request(
+  const xhr = await translationRequest(
+    data,
     "GET",
-    `http://api.microsofttranslator.com/V2/Ajax.svc/TranslateArray?appId=${await getAppId()}&from=${
+    `http://api.microsofttranslator.com/V2/Ajax.svc/TranslateArray?appId=${await getAppId(false, getTaskLifecycle(data))}&from=${
       data.langfrom
     }&to=${data.langto}&texts=["${encodeURIComponent(
       data.raw.replace(/"/g, '\\"'),
@@ -26,7 +33,11 @@ const translate = <TranslateService["translate"]>async function (data) {
   }
 };
 
-async function getAppId(forceRefresh: boolean = false) {
+async function getAppId(
+  forceRefresh: boolean = false,
+  lifecycle = captureTranslationLifecycle(addon),
+) {
+  assertTranslationActive(lifecycle);
   let appId = "";
   // Just in case the update fails
   let doRefresh = true;
@@ -45,7 +56,8 @@ async function getAppId(forceRefresh: boolean = false) {
     ztoolkit.log(e);
   }
   if (doRefresh) {
-    const xhr = await Zotero.HTTP.request(
+    const xhr = await translationRequest(
+      lifecycle,
       "GET",
       "http://capi.dict.cn/fanyi.php",
       {
@@ -55,6 +67,7 @@ async function getAppId(forceRefresh: boolean = false) {
         responseType: "text",
       },
     );
+    assertTranslationActive(lifecycle);
     if (xhr && xhr.response) {
       appId = xhr.response.match(/"(.+)"/)[1];
       setPref(

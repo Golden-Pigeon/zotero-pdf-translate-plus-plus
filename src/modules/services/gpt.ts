@@ -1,3 +1,4 @@
+import { translationRequest } from "../../utils/http";
 import { getPref, getString, transformPromptWithContext } from "../../utils";
 import { TranslateService } from "./base";
 import { hasSourceTextPlaceholder } from "./gptPrompt";
@@ -281,7 +282,7 @@ const gptTranslate = async function (
         ...getCustomParams(prefix),
       };
 
-  const xhr = await Zotero.HTTP.request("POST", apiURL, {
+  const xhr = await translationRequest(data, "POST", apiURL, {
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${data.secret}`,

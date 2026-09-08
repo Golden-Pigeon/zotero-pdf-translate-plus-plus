@@ -1,6 +1,15 @@
 import { getPref } from "./utils/prefs";
 import { TranslateTask } from "./utils/task";
 import { version } from "../package.json";
+import {
+  assertTranslationActive,
+  bindTranslationTask,
+  captureTranslationLifecycle,
+  getTaskLifecycle,
+  isTranslationActive,
+  runWhileTranslationActive,
+  TranslationCancelledError,
+} from "./utils/lifecycle";
 
 /**
  * To plugin developers: Please use this API to translate your custom text.
@@ -66,6 +75,9 @@ async function translate(
   raw: string,
   serviceOrOptions?: string | string[] | any,
 ) {
+  const lifecycle = captureTranslationLifecycle(addon);
+  assertTranslationActive(lifecycle);
+  const owner = lifecycle.owner;
   let currentService: string;
   let candidateServices: string[] = [];
   let service;
@@ -122,9 +134,10 @@ async function translate(
       ? "unknown caller with translate for zotero api"
       : (serviceOrOptions as any).pluginID,
   };
-  await addon.data.translate.services.runTranslationTask(data, {
+  await owner.data.translate.services.runTranslationTask(data, {
     noDisplay: true,
   });
+  assertTranslationActive(lifecycle);
   return data;
 }
 
@@ -136,15 +149,23 @@ async function translate(
  */
 function getTemporaryRefreshHandler(options?: { task?: TranslateTask }) {
   const translateTask = options?.task;
+  const lifecycle = translateTask
+    ? getTaskLifecycle(translateTask)
+    : captureTranslationLifecycle(addon);
+  const owner = lifecycle.owner;
+  if (!isTranslationActive(lifecycle)) return () => {};
   if (translateTask && translateTask.type !== "text") {
     return () => {};
   }
   const newTick = `${Zotero.Utilities.randomString()}-${Date.now()}`;
-  addon.data.translate.refreshTick = newTick;
+  owner.data.translate.refreshTick = newTick;
   return () => {
-    if (addon.data.translate.refreshTick === newTick) {
-      addon.hooks.onReaderPopupRefresh();
-      addon.hooks.onReaderTabPanelRefresh();
+    if (
+      isTranslationActive(lifecycle) &&
+      owner.data.translate.refreshTick === newTick
+    ) {
+      owner.hooks.onReaderPopupRefresh();
+      owner.hooks.onReaderTabPanelRefresh();
     }
   };
 }
@@ -154,9 +175,22 @@ function getTemporaryRefreshHandler(options?: { task?: TranslateTask }) {
  * @returns Array of services.
  */
 function getServices() {
-  return addon.data.translate.services
+  const lifecycle = captureTranslationLifecycle(addon);
+  assertTranslationActive(lifecycle);
+  return lifecycle.owner.data.translate.services
     .getAllServices()
-    .map((service) => Object.assign({}, service));
+    .map((service) => ({
+      ...service,
+      translate(data: Required<TranslateTask>) {
+        assertTranslationActive(lifecycle);
+        if (!bindTranslationTask(data, lifecycle)) {
+          throw new TranslationCancelledError();
+        }
+        return runWhileTranslationActive(lifecycle, () =>
+          service.translate(data),
+        );
+      },
+    }));
 }
 
 /**

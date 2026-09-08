@@ -1,3 +1,4 @@
+import { translationRequest } from "../../utils/http";
 import { getPref } from "../../utils/prefs";
 import { TranslateService } from "./base";
 
@@ -5,7 +6,7 @@ const translate = <TranslateService["translate"]>async function (data) {
   const url =
     (getPref("mtranserver.endpoint") as string) ||
     "http://localhost:8989/translate";
-  const xhr = await Zotero.HTTP.request("POST", `${url}`, {
+  const xhr = await translationRequest(data, "POST", `${url}`, {
     headers: {
       authorization: `${data.secret}`,
       "content-type": "application/json",

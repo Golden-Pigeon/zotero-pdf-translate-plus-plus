@@ -1,3 +1,4 @@
+import { translationRequest } from "../../utils/http";
 import { TranslateService } from "./base";
 
 const cambridgeLangCode = <const>[
@@ -58,7 +59,8 @@ const translate: TranslateService["translate"] = async function (data) {
   if (dict === "unsupported" || !parser)
     throw `Language Error: unsupported dictionary ${dict}`;
 
-  const xhr = await Zotero.HTTP.request(
+  const xhr = await translationRequest(
+    data,
     "GET",
     `https://dictionary.cambridge.org/dictionary/${dict}/${encodeURIComponent(data.raw)}`,
     {

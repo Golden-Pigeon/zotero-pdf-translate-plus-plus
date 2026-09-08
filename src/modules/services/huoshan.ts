@@ -1,3 +1,4 @@
+import { translationRequest } from "../../utils/http";
 import { hex, hmacSha256Digest, sha256Digest } from "../../utils/crypto";
 import { TranslateService } from "./base";
 
@@ -89,7 +90,8 @@ const translate = <TranslateService["translate"]>async function (data) {
 
   header["Authorization"] = authorization;
 
-  const xhr = await Zotero.HTTP.request(
+  const xhr = await translationRequest(
+    data,
     "POST",
     "http://translate.volcengineapi.com/?Action=TranslateText&Version=2020-06-01",
     {

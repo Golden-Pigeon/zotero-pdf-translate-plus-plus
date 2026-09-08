@@ -3,6 +3,8 @@ import pkg from "./package.json";
 import { copyFileSync, existsSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import legacyUpdate from "./updates/legacy-2.4.8.json";
+import { panelTag, mathTag } from "./src/utils/elementNames";
+import { writeScopedKatexStyles } from "./scripts/scope-katex.mjs";
 
 export default defineConfig({
   source: ["src", "addon"],
@@ -27,6 +29,7 @@ export default defineConfig({
       "build:copyAssets": (ctx) => {
         copyFileSync("LICENSE", join(ctx.dist, "addon", "LICENSE"));
         copyFileSync("README.md", join(ctx.dist, "addon", "README.md"));
+        writeScopedKatexStyles(join(ctx.dist, "addon"), pkg.config.addonRef);
       },
       "build:makeUpdateJSON": (ctx) => {
         for (const name of ["update.json", "update-beta.json"]) {
@@ -40,6 +43,8 @@ export default defineConfig({
     },
     define: {
       ...pkg.config,
+      panelTag,
+      mathTag,
       author: pkg.author,
       description: pkg.description,
       homepage: pkg.homepage,

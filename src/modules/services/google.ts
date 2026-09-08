@@ -1,3 +1,4 @@
+import { translationRequest } from "../../utils/http";
 import { TranslateTask } from "../../utils/task";
 import { TranslateService } from "./base";
 
@@ -60,7 +61,8 @@ async function _google(url: string, data: Required<TranslateTask>) {
 
   const param = `sl=${langfrom}&tl=${langto}`;
 
-  const xhr = await Zotero.HTTP.request(
+  const xhr = await translationRequest(
+    data,
     "GET",
     `${
       data.secret ? data.secret : url

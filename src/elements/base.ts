@@ -1,12 +1,14 @@
 import { config } from "../../package.json";
 
 export class PluginCEBase extends XULElementBase {
-  _addon!: typeof addon;
   useShadowRoot = false;
 
+  get _addon(): typeof addon {
+    // @ts-expect-error - Plugin instance is not typed
+    return Zotero[config.addonInstance];
+  }
+
   connectedCallback(): void {
-    // @ts-ignore - Plugin instance is not typed
-    this._addon = Zotero[config.addonInstance];
     Zotero.UIProperties.registerRoot(this);
     if (!this.useShadowRoot) {
       super.connectedCallback();

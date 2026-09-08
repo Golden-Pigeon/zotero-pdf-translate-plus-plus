@@ -4,6 +4,11 @@ import { getPref, setPref } from "../utils/prefs";
 import { getLastTranslateTask } from "../utils/task";
 import { TranslatorPanel } from "../elements/panel";
 import { isWindowAlive } from "../utils/window";
+import { panelTag } from "../utils/elementNames";
+import {
+  captureTranslationLifecycle,
+  isTranslationActive,
+} from "../utils/lifecycle";
 import { services } from "./services";
 
 let paneKey = "";
@@ -22,13 +27,11 @@ export function registerReaderTabPanel() {
       // @ts-ignore
       orderable: false,
     },
-    bodyXHTML: `<${config.addonRef}-translator-panel />`,
+    bodyXHTML: `<${panelTag} />`,
     onInit,
     onDestroy,
     onRender: ({ body, item }) => {
-      const panel = body.querySelector(
-        `${config.addonRef}-translator-panel`,
-      ) as TranslatorPanel;
+      const panel = body.querySelector(panelTag) as TranslatorPanel;
       panel.item = item;
       panel.render();
       onUpdateHeight({ body });
@@ -60,8 +63,11 @@ export function registerReaderTabPanel() {
 }
 
 async function openWindowPanel() {
-  if (addon.data.panel.windowPanel && !addon.data.panel.windowPanel.closed) {
-    addon.data.panel.windowPanel.close();
+  const owner = addon;
+  const lifecycle = captureTranslationLifecycle(owner);
+  if (!isTranslationActive(lifecycle)) return;
+  if (owner.data.panel.windowPanel && !owner.data.panel.windowPanel.closed) {
+    owner.data.panel.windowPanel.close();
   }
   const dialogData = {
     loadLock: Zotero.Promise.defer(),
@@ -74,10 +80,27 @@ async function openWindowPanel() {
     }`,
     dialogData,
   )!;
+  owner.data.panel.windowPanel = win;
+  win.addEventListener(
+    "unload",
+    () => {
+      if (owner.data.panel.windowPanel === win) {
+        owner.data.panel.windowPanel = null;
+      }
+      dialogData.loadLock.resolve();
+    },
+    { once: true },
+  );
   await dialogData.loadLock.promise;
+  if (
+    !isTranslationActive(lifecycle) ||
+    win.closed ||
+    owner.data.panel.windowPanel !== win
+  ) {
+    return;
+  }
   buildExtraPanel(win.document);
   updateExtraPanel(win.document);
-  addon.data.panel.windowPanel = win;
 }
 
 export function updateReaderTabPanels() {
@@ -259,9 +282,7 @@ function onItemChange({
 
 function updateExtraPanel(container: HTMLElement | Document) {
   const lastTask = getLastTranslateTask();
-  const panel = container.querySelector(
-    `${config.addonRef}-translator-panel`,
-  ) as TranslatorPanel;
+  const panel = container.querySelector(panelTag) as TranslatorPanel;
   if (panel) {
     panel.item = Zotero.Items.get(lastTask?.itemId || -1);
     panel.render();

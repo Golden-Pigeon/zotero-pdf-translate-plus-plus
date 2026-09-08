@@ -1,3 +1,4 @@
+import { translationRequest } from "../../utils/http";
 import { getPref, getString, transformPromptWithContext } from "../../utils";
 import { TranslateService } from "./base";
 import type { TranslateTask } from "../../utils/task";
@@ -48,7 +49,7 @@ const translate = <TranslateService["translate"]>async function (data) {
     "x-api-key": data.secret,
   };
 
-  const xhr = await Zotero.HTTP.request("POST", apiURL, {
+  const xhr = await translationRequest(data, "POST", apiURL, {
     headers: headers,
     body: JSON.stringify(requestBody),
     responseType: "text",

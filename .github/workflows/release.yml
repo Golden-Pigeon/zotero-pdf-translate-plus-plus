@@ -41,6 +41,9 @@ jobs:
       - name: Install deps
         run: npm ci
 
+      - name: Verify math style isolation
+        run: npm run test:styles
+
       - name: Build
         run: npm run build
 

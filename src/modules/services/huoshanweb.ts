@@ -1,3 +1,4 @@
+import { translationRequest } from "../../utils/http";
 import type { TranslateService } from "./base";
 
 // https://github.com/TechDecryptor/pot-app-translate-plugin-volcengine
@@ -18,7 +19,7 @@ export const HuoshanWeb: TranslateService = {
     const headers = {
       "content-type": "application/json",
     };
-    const xhr = await Zotero.HTTP.request("POST", URL, {
+    const xhr = await translationRequest(data, "POST", URL, {
       headers,
       body: JSON.stringify(body),
       responseType: "json",

@@ -1,3 +1,4 @@
+import { translationRequest } from "../../utils/http";
 import { TranslateService } from "./base";
 
 const translate: TranslateService["translate"] = async function (data) {
@@ -5,7 +6,8 @@ const translate: TranslateService["translate"] = async function (data) {
 
   Zotero.debug("[GramotaDict] looking up: " + word);
 
-  const xhr = await Zotero.HTTP.request(
+  const xhr = await translationRequest(
+    data,
     "GET",
     `https://gramota.ru/poisk?query=${encodeURIComponent(word)}&mode=all`,
     { responseType: "text" },

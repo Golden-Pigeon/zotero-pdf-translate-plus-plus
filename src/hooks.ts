@@ -27,6 +27,43 @@ import { registerShortcuts } from "./modules/shortcuts";
 import { registerItemPaneInfoRows } from "./modules/infoBox";
 import { registerPrompt } from "./modules/prompt";
 import { registerCustomFields } from "./modules/fields";
+import {
+  cancelTranslationWork,
+  captureTranslationLifecycle,
+  isTranslationActive,
+  runWhileTranslationActive,
+  translationDelay,
+} from "./utils/lifecycle";
+import { cleanupLegacyMathStyles, cleanupMathStyles } from "./utils/mathStyles";
+
+const windowFocusListeners = new Map<Window, EventListener>();
+
+function isOwnInstanceActive() {
+  return isTranslationActive(captureTranslationLifecycle(addon));
+}
+
+function cleanupLegacyReaderStyles() {
+  const visited = new Set<Document>();
+  const visit = (doc?: Document | null) => {
+    if (!doc || visited.has(doc)) return;
+    visited.add(doc);
+    cleanupLegacyMathStyles(doc);
+    for (const frame of doc.querySelectorAll("iframe")) {
+      try {
+        visit((frame as HTMLIFrameElement).contentDocument);
+      } catch {
+        // Reader frames may disappear while tabs navigate or close.
+      }
+    }
+  };
+  for (const reader of Zotero.Reader._readers) {
+    try {
+      visit(reader._iframeWindow?.document);
+    } catch {
+      // An opening reader will be cleaned when its math styles are requested.
+    }
+  }
+}
 
 async function onStartup() {
   await Promise.all([
@@ -35,7 +72,9 @@ async function onStartup() {
     Zotero.uiReadyPromise,
   ]);
 
-  if (!addon.data.alive) return;
+  if (!isOwnInstanceActive()) return;
+
+  cleanupLegacyReaderStyles();
 
   // TODO: Remove this after zotero#3387 is merged
   if (__env__ === "development") {
@@ -70,24 +109,38 @@ async function onStartup() {
 }
 
 async function onMainWindowLoad(win: Window): Promise<void> {
-  await new Promise((resolve) => {
+  const lifecycle = captureTranslationLifecycle(addon);
+  if (!isTranslationActive(lifecycle)) return;
+  let onReady: EventListener | undefined;
+  try {
     if (win.document.readyState !== "complete") {
-      win.document.addEventListener("readystatechange", () => {
-        if (win.document.readyState === "complete") {
-          resolve(void 0);
-        }
-      });
+      await runWhileTranslationActive(
+        lifecycle,
+        () =>
+          new Promise<void>((resolve) => {
+            onReady = () => {
+              if (win.document.readyState === "complete") resolve();
+            };
+            win.document.addEventListener("readystatechange", onReady);
+          }),
+      );
     }
-    resolve(void 0);
-  });
+    await runWhileTranslationActive(lifecycle, () =>
+      Promise.all([
+        Zotero.initializationPromise,
+        Zotero.unlockPromise,
+        Zotero.uiReadyPromise,
+      ]),
+    );
+  } catch (error) {
+    if (!isTranslationActive(lifecycle)) return;
+    throw error;
+  } finally {
+    if (onReady) win.document.removeEventListener("readystatechange", onReady);
+  }
 
-  await Promise.all([
-    Zotero.initializationPromise,
-    Zotero.unlockPromise,
-    Zotero.uiReadyPromise,
-  ]);
-
-  if (!addon.data.alive) return;
+  if (!isTranslationActive(lifecycle)) return;
+  cleanupLegacyMathStyles(win.document);
 
   Services.scriptloader.loadSubScript(
     `chrome://${config.addonRef}/content/scripts/customElements.js`,
@@ -101,29 +154,48 @@ async function onMainWindowLoad(win: Window): Promise<void> {
   registerMenu();
   registerPrompt();
 
-  win.document.addEventListener("focusout", (ev) => {
-    if (ev.target !== win.document) {
+  const previousListener = windowFocusListeners.get(win);
+  if (previousListener)
+    win.document.removeEventListener("focusout", previousListener);
+  const onFocusOut: EventListener = (ev) => {
+    if (!isTranslationActive(lifecycle) || ev.target !== win.document) {
       return;
     }
-    addon.data.translate.concatKey = false;
-  });
+    lifecycle.owner.data.translate.concatKey = false;
+  };
+  windowFocusListeners.set(win, onFocusOut);
+  win.document.addEventListener("focusout", onFocusOut);
 }
 
 async function onMainWindowUnload(win: Window): Promise<void> {
+  const listener = windowFocusListeners.get(win);
+  if (listener) win.document.removeEventListener("focusout", listener);
+  windowFocusListeners.delete(win);
+  cleanupMathStyles(win.document, addon);
   win.document
     .querySelector(`[href="${config.addonRef}-mainWindow.ftl"]`)
     ?.remove();
 }
 
 function onShutdown(): void {
+  cancelTranslationWork(addon);
+  cleanupMathStyles(undefined, addon);
   ztoolkit.unregisterAll();
-  Zotero.getMainWindows().forEach((win) => {
-    onMainWindowUnload(win);
-  });
-  // Remove addon object
-  addon.data.alive = false;
-  // @ts-ignore - Plugin instance is not typed
-  delete Zotero[config.addonInstance];
+  const windows = new Set([
+    ...Zotero.getMainWindows(),
+    ...windowFocusListeners.keys(),
+  ]);
+  for (const win of windows) {
+    void onMainWindowUnload(win).catch((error) => Zotero.logError(error));
+  }
+  const standalone = addon.data.panel.windowPanel;
+  addon.data.panel.windowPanel = null;
+  if (standalone && !standalone.closed) standalone.close();
+  addon.data.panel.activePanels = {};
+  addon.data.popup.currentPopup = null;
+  if (Reflect.get(Zotero, config.addonInstance) === addon) {
+    Reflect.deleteProperty(Zotero, config.addonInstance);
+  }
 }
 
 /**
@@ -136,6 +208,7 @@ function onNotify(
   ids: Array<string | number>,
   extraData: { [key: string]: any },
 ) {
+  if (!isOwnInstanceActive()) return;
   if (event === "add" && type === "item") {
     if (
       !getPref("enableAnnotationFromSyncTranslation") &&
@@ -164,10 +237,12 @@ function onNotify(
 }
 
 function onPrefsLoad(event: Event) {
+  if (!isOwnInstanceActive()) return;
   registerPrefsScripts((event.target as any).ownerGlobal);
 }
 
 function onShortcuts(type: string) {
+  if (!isOwnInstanceActive()) return;
   switch (type) {
     case "library":
       {
@@ -206,10 +281,12 @@ async function onTranslate(
   >["1"],
 ): Promise<void>;
 async function onTranslate(...data: any) {
+  const lifecycle = captureTranslationLifecycle(addon);
+  if (!isTranslationActive(lifecycle)) return;
   let task = undefined;
   let options = {};
   if (data.length === 1) {
-    if (data[0].raw) {
+    if (data[0]?.raw) {
       task = data[0];
     } else {
       options = data[0];
@@ -218,7 +295,10 @@ async function onTranslate(...data: any) {
     task = data[0];
     options = data[1];
   }
-  await addon.data.translate.services.runTranslationTask(task, options);
+  await lifecycle.owner.data.translate.services.runTranslationTask(
+    task,
+    options,
+  );
 }
 
 async function onTranslateInBatch(
@@ -227,15 +307,28 @@ async function onTranslateInBatch(
     Addon["data"]["translate"]["services"]["runTranslationTask"]
   >["1"] = {},
 ) {
+  const lifecycle = captureTranslationLifecycle(addon);
+  if (!isTranslationActive(lifecycle)) return;
   for (const task of tasks) {
-    await addon.hooks.onTranslate(task, options);
-    await Zotero.Promise.delay(addon.data.translate.batchTaskDelay);
+    if (!isTranslationActive(lifecycle)) return;
+    await lifecycle.owner.hooks.onTranslate(task, options);
+    if (!isTranslationActive(lifecycle)) return;
+    try {
+      await translationDelay(
+        lifecycle.owner.data.translate.batchTaskDelay,
+        lifecycle,
+      );
+    } catch (error) {
+      if (!isTranslationActive(lifecycle)) return;
+      throw error;
+    }
   }
 }
 
 function onReaderPopupShow(
   event: _ZoteroTypes.Reader.EventParams<"renderTextSelectionPopup">,
 ) {
+  if (!isOwnInstanceActive()) return;
   const selection = addon.data.translate.selectedText;
   const task = getLastTranslateTask();
   if (task?.raw === selection) {
@@ -252,10 +345,12 @@ function onReaderPopupShow(
 }
 
 function onReaderPopupRefresh() {
+  if (!isOwnInstanceActive()) return;
   updateReaderPopup();
 }
 
 function onReaderTabPanelRefresh() {
+  if (!isOwnInstanceActive()) return;
   updateReaderTabPanels();
 }
 

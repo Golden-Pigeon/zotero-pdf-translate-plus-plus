@@ -1,6 +1,6 @@
 {
   "name": "zotero-pdf-translate-plus-plus",
-  "version": "2.4.9",
+  "version": "2.4.10",
   "description": "Independently maintained Zotero translation plugin with reader popup math rendering and 20+ translation services.",
   "config": {
     "addonName": "Translate for Zotero++",
@@ -17,6 +17,7 @@
     "release": "zotero-plugin release",
     "lint": "prettier --write . && eslint . --fix",
     "test": "zotero-plugin test",
+    "test:styles": "node --test scripts/scope-katex.test.mjs",
     "update-deps": "npm update --save"
   },
   "repository": {
@@ -57,6 +58,9 @@
     "eslint": "^9.39.1",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
+    "postcss": "^8.5.28",
+    "postcss-selector-parser": "^7.1.6",
+    "postcss-value-parser": "^4.2.0",
     "prettier": "^3.7.4",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.48.1",

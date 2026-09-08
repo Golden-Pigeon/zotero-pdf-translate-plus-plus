@@ -1,3 +1,4 @@
+import { translationRequest } from "../../utils/http";
 import JSEncrypt from "jsencrypt";
 import {
   createServiceSettingsDialog,
@@ -8,6 +9,11 @@ import {
 } from "../../utils";
 import { getPref, setPref } from "../../utils/prefs";
 import { TranslateService } from "./base";
+import {
+  assertTranslationActive,
+  captureTranslationLifecycle,
+  isTranslationActive,
+} from "../../utils/lifecycle";
 
 const translate = <TranslateService["translate"]>async function (data) {
   const apikey = data.secret;
@@ -40,7 +46,7 @@ const translate = <TranslateService["translate"]>async function (data) {
       caller_id: data.callerID,
     };
   }
-  const xhr = await Zotero.HTTP.request("POST", requestUrl, {
+  const xhr = await translationRequest(data, "POST", requestUrl, {
     headers: {
       "content-type": "application/json",
       accept: "application/json, text/plain, */*",
@@ -95,12 +101,15 @@ export const Niutrans: TranslateService = {
   translate,
 
   config(settings) {
+    const lifecycle = captureTranslationLifecycle(addon);
     async function niutransLogin(username: string, password: string) {
+      assertTranslationActive(lifecycle);
       let loginFlag = false;
       let loginErrorMessage = "Not login";
 
       // Get the public key with a proper HTTPS request
       const keyResponse = await getPublicKey();
+      assertTranslationActive(lifecycle);
 
       // Verify the response was successful and has the expected flag
       if (keyResponse?.status !== 200 || keyResponse.response.flag !== 1) {
@@ -131,6 +140,7 @@ export const Niutrans: TranslateService = {
         encryptionPassword,
         jsessionid,
       );
+      assertTranslationActive(lifecycle);
 
       if (userLoginResponse?.status === 200) {
         if (userLoginResponse.response.flag === 1) {
@@ -141,7 +151,9 @@ export const Niutrans: TranslateService = {
 
           // Use the same JSESSIONID for subsequent requests
           await setDictLibList(apikey, jsessionid);
+          assertTranslationActive(lifecycle);
           await setMemoryLibList(apikey, jsessionid);
+          assertTranslationActive(lifecycle);
           loginFlag = true;
         } else {
           loginFlag = false;
@@ -156,7 +168,8 @@ export const Niutrans: TranslateService = {
       password: string,
       jsessionid: string,
     ) {
-      return await Zotero.HTTP.request(
+      return await translationRequest(
+        lifecycle,
         "POST",
         "https://apis.niutrans.com/NiuTransAPIServer/checkInformation",
         {
@@ -170,7 +183,8 @@ export const Niutrans: TranslateService = {
     }
 
     async function setDictLibList(apikey: string, jsessionid: string) {
-      const xhr = await Zotero.HTTP.request(
+      const xhr = await translationRequest(
+        lifecycle,
         "POST",
         "https://apis.niutrans.com/NiuTransAPIServer/getDictLibList",
         {
@@ -181,6 +195,7 @@ export const Niutrans: TranslateService = {
           },
         },
       );
+      assertTranslationActive(lifecycle);
       if (xhr?.status === 200 && xhr.response.flag !== 0) {
         const dictList = xhr.response.dlist as {
           dictName: string;
@@ -204,7 +219,8 @@ export const Niutrans: TranslateService = {
     }
 
     async function setMemoryLibList(apikey: string, jsessionid: string) {
-      const xhr = await Zotero.HTTP.request(
+      const xhr = await translationRequest(
+        lifecycle,
         "POST",
         "https://apis.niutrans.com/NiuTransAPIServer/getMemoryLibList",
         {
@@ -215,6 +231,7 @@ export const Niutrans: TranslateService = {
           },
         },
       );
+      assertTranslationActive(lifecycle);
 
       if (xhr?.status === 200 && xhr.response.flag !== 0) {
         const memoryList = xhr.response.mlist as {
@@ -240,7 +257,8 @@ export const Niutrans: TranslateService = {
     }
 
     async function getPublicKey() {
-      return await Zotero.HTTP.request(
+      return await translationRequest(
+        lifecycle,
         "GET",
         "https://apis.niutrans.com/NiuTransAPIServer/getpublickey",
         {
@@ -335,6 +353,7 @@ export const Niutrans: TranslateService = {
               {
                 type: "click",
                 listener: async (e: Event) => {
+                  if (!isTranslationActive(lifecycle)) return;
                   setPref("niutransUsername", "");
                   setPref("niutransPassword", "");
                   setPref("niutransDictLibList", "[]");
@@ -365,14 +384,23 @@ export const Niutrans: TranslateService = {
               {
                 type: "click",
                 listener: async (e: Event) => {
+                  if (!isTranslationActive(lifecycle)) return;
                   const _dialog = settings as ServiceSettingsDialog;
 
                   // login
                   const data = _dialog.getAllSettingsData();
-                  const { loginFlag, loginErrorMessage } = await niutransLogin(
-                    data["niutransUsername"],
-                    data["niutransPassword"],
-                  );
+                  let login;
+                  try {
+                    login = await niutransLogin(
+                      data["niutransUsername"],
+                      data["niutransPassword"],
+                    );
+                  } catch (error) {
+                    if (!isTranslationActive(lifecycle)) return;
+                    throw error;
+                  }
+                  if (!isTranslationActive(lifecycle)) return;
+                  const { loginFlag, loginErrorMessage } = login;
 
                   // If login failed, show error message
                   if (!loginFlag) {

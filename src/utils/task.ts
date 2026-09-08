@@ -4,6 +4,14 @@ import { getPref } from "./prefs";
 import { getServiceSecret } from "./secret";
 import { config } from "../../package.json";
 import Addon from "../addon";
+import {
+  bindTranslationTask,
+  captureTranslationLifecycle,
+  getTaskLifecycle,
+  isTranslationActive,
+  runWhileTranslationActive,
+  TranslationCancelledError,
+} from "./lifecycle";
 
 export interface TranslateTask {
   /**
@@ -68,7 +76,7 @@ export interface TranslateTask {
   /**
    * task status.
    */
-  status: "waiting" | "processing" | "success" | "fail";
+  status: "waiting" | "processing" | "success" | "fail" | "cancelled";
   /**
    * Extra tasks.
    *
@@ -133,8 +141,12 @@ export class TranslateTaskRunner {
   }
 
   public async run(data: TranslateTask) {
-    // @ts-ignore - Plugin instance is not typed
-    const addon = Zotero[config.addonInstance] as Addon;
+    const lifecycle = getTaskLifecycle(data);
+    if (!isTranslationActive(lifecycle)) {
+      data.status = "cancelled";
+      return;
+    }
+    const addon = lifecycle.owner;
     const ztoolkit = addon.data.ztoolkit;
     if (!data.langfrom || !data.langto) {
       ztoolkit.log("try auto detect language");
@@ -159,9 +171,18 @@ export class TranslateTaskRunner {
     data.status = "processing";
     try {
       ztoolkit.log(sanitizeTaskForLog(data));
-      await this.processor(data as Required<TranslateTask>);
+      await runWhileTranslationActive(lifecycle, () =>
+        this.processor(data as Required<TranslateTask>),
+      );
       data.status = "success";
     } catch (e) {
+      if (
+        !isTranslationActive(lifecycle) ||
+        e instanceof TranslationCancelledError
+      ) {
+        data.status = "cancelled";
+        return;
+      }
       if (e instanceof TranslateError) {
         data.result = e.message;
       } else {
@@ -185,11 +206,9 @@ export function addTranslateTask(
   type?: TranslateTask["type"],
   service?: string,
 ) {
-  if (!raw) {
-    return;
-  }
-  // @ts-ignore - Plugin instance is not typed
-  const addon = Zotero[config.addonInstance] as Addon;
+  if (!raw || !isTranslationActive()) return;
+  const lifecycle = captureTranslationLifecycle();
+  const addon = lifecycle.owner;
   type = type || "text";
   // Filter raw string
 
@@ -222,6 +241,7 @@ export function addTranslateTask(
     status: "waiting",
     extraTasks: [],
   };
+  bindTranslationTask(newTask, lifecycle);
 
   if (!service) {
     setDefaultService(newTask);
@@ -270,6 +290,7 @@ export function addTranslateAnnotationTask(
   itemIDOrLibraryID: number,
   itemKey?: string,
 ) {
+  if (!isTranslationActive()) return;
   let item: Zotero.Item | false;
   if (itemKey) {
     item = Zotero.Items.getByLibraryAndKey(
@@ -289,6 +310,7 @@ export function addTranslateTitleTask(
   itemId: number,
   skipIfExists: boolean = false,
 ) {
+  if (!isTranslationActive()) return;
   // @ts-ignore - Plugin instance is not typed
   const addon = Zotero[config.addonInstance] as Addon;
   const ztoolkit = addon.data.ztoolkit;
@@ -308,6 +330,7 @@ export function addTranslateAbstractTask(
   itemId: number,
   skipIfExists: boolean = false,
 ) {
+  if (!isTranslationActive()) return;
   // @ts-ignore - Plugin instance is not typed
   const addon = Zotero[config.addonInstance] as Addon;
   const ztoolkit = addon.data.ztoolkit;
@@ -352,7 +375,8 @@ function setDefaultService(task: TranslateTask) {
   }
 
   task.service =
-    task.service || addon.data.translate.services.getAllServices()[0].id;
+    task.service ||
+    getTaskLifecycle(task).owner.data.translate.services.getAllServices()[0].id;
 }
 
 function cleanTasks() {

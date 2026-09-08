@@ -57,6 +57,10 @@ const resources = {
   ],
   [`chrome/content/scripts/${addonRef}.js`]: identity,
   "chrome/content/scripts/customElements.js": [addonRef],
+  "chrome/content/styles/katex.min.css": [
+    `.${addonRef}-math-root`,
+    `${addonRef}-KaTeX_Main`,
+  ],
 };
 for (const [path, expected] of Object.entries(resources)) {
   const content = read(`build/addon/${path}`);
@@ -64,7 +68,8 @@ for (const [path, expected] of Object.entries(resources)) {
     assert.ok(content.includes(value), `${path} is missing ${value}`);
 }
 const addonDirectory = new URL("build/addon/", root);
-const placeholders = /__addon(?:Ref|Instance|ID|Name)__|__prefsPrefix__/;
+const placeholders =
+  /__addon(?:Ref|Instance|ID|Name)__|__prefsPrefix__|__(?:panelTag|mathTag)__/;
 for (const path of readdirSync(addonDirectory, { recursive: true })) {
   assert.doesNotMatch(path, placeholders, path);
   if (!/\.(js|json|xhtml|ftl|css)$/.test(path)) continue;

@@ -1,7 +1,9 @@
+import { translationRequest } from "../../utils/http";
 import { TranslateService } from "./base";
 
 const translate: TranslateService["translate"] = async (data) => {
-  const xhr = await Zotero.HTTP.request(
+  const xhr = await translationRequest(
+    data,
     "POST",
     `https://edge.microsoft.com/translate/translatetext?from=${data.langfrom}&to=${data.langto}&isEnterpriseClient=false`,
     {

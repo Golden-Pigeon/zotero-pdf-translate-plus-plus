@@ -13,7 +13,7 @@ linkset {
   border-top: var(--material-border);
 }
 
-__addonRef__-translator-panel {
+__panelTag__ {
   width: 100%;
   flex-grow: 1;
 }

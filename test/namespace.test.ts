@@ -1,12 +1,15 @@
 import { config } from "../package.json";
 import { registerPrompt } from "../src/modules/prompt";
+import {
+  getCustomElementNames,
+  mathTag,
+  panelTag,
+} from "../src/utils/elementNames";
 
 describe("Independent plugin namespace", function () {
   it("registers and renders the namespaced panel and math textboxes", function () {
     const win = Zotero.getMainWindow();
     const registry = (win as unknown as Window).customElements;
-    const panelTag = `${config.addonRef}-translator-panel`;
-    const mathTag = `${config.addonRef}-math-textbox`;
     assert.isFunction(registry.get(panelTag));
     assert.isFunction(registry.get(mathTag));
     assert.notStrictEqual(
@@ -29,6 +32,100 @@ describe("Independent plugin namespace", function () {
       assert.lengthOf(content.querySelectorAll("math-textbox"), 0);
     } finally {
       Zotero.Prefs.get = originalGet;
+    }
+  });
+
+  it("uses distinct custom-element names for each release and prerelease", function () {
+    const releases = ["2.4.9", "2.4.10", "2.4.10-beta.1", "2.4.10-beta-1"];
+    const tags = releases.flatMap((release) =>
+      Object.values(getCustomElementNames(release)),
+    );
+    assert.equal(new Set(tags).size, releases.length * 2);
+    tags.forEach((tag) => {
+      assert.match(tag, /^[a-z][a-z0-9-]+$/);
+      assert.isTrue(tag.startsWith(`${config.addonRef}-`));
+    });
+  });
+
+  it("reads the active service registry when a built component is reused", function () {
+    type Panel = {
+      readonly _addon: unknown;
+      readonly content: DocumentFragment;
+      connectedCallback(): void;
+      _filterUnconfiguredServices(): void;
+      _queryID(key: string): Element | null;
+    };
+    type Constructor = new () => Panel;
+    const registered = new Map<string, Constructor>();
+    const legacyConstructor = class {} as unknown as Constructor;
+    registered.set(`${config.addonRef}-translator-panel`, legacyConstructor);
+    const previousPanelTag = getCustomElementNames("2.4.9").panelTag;
+    registered.set(previousPanelTag, legacyConstructor);
+    const makePlugin = (serviceID: string) => ({
+      data: {
+        translate: {
+          services: {
+            getAllServicesWithType: () => [{ id: serviceID }],
+            getServiceNameByID: () => serviceID,
+            getUnconfiguredServiceIds: () => new Set([serviceID]),
+          },
+        },
+      },
+    });
+    const firstPlugin = makePlugin("first-service");
+    const secondPlugin = makePlugin("second-service");
+    const fakeZotero = {
+      [config.addonInstance]: firstPlugin,
+      Prefs: { get: () => true },
+      UIProperties: { registerRoot: () => {} },
+    };
+    const scope = {
+      Zotero: fakeZotero,
+      XULElementBase: class {
+        connectedCallback() {}
+      },
+      MozXULElement: (Zotero.getMainWindow() as any).MozXULElement,
+      customElements: {
+        get: (tag: string) => registered.get(tag),
+        define: (tag: string, constructor: Constructor) => {
+          assert.isFalse(registered.has(tag));
+          registered.set(tag, constructor);
+        },
+      },
+    };
+    const load = () =>
+      Services.scriptloader.loadSubScript(
+        `chrome://${config.addonRef}/content/scripts/customElements.js`,
+        scope,
+      );
+    load();
+    const firstConstructor = registered.get(panelTag)!;
+    assert.isFunction(firstConstructor);
+    assert.notStrictEqual(firstConstructor, legacyConstructor);
+    assert.strictEqual(registered.get(previousPanelTag), legacyConstructor);
+    const retainedPanel = new firstConstructor();
+    retainedPanel.connectedCallback();
+    assert.exists(
+      retainedPanel.content.querySelector('menuitem[value="first-service"]'),
+    );
+
+    fakeZotero[config.addonInstance] = secondPlugin;
+    load();
+    assert.strictEqual(registered.get(panelTag), firstConstructor);
+    assert.strictEqual(retainedPanel._addon, secondPlugin);
+    for (const panel of [retainedPanel, new (registered.get(panelTag)!)()]) {
+      const content = panel.content;
+      assert.notExists(
+        content.querySelector('menuitem[value="first-service"]'),
+      );
+      const serviceItem = content.querySelector(
+        'menuitem[value="second-service"]',
+      ) as HTMLElement;
+      assert.exists(serviceItem);
+      panel._queryID = (key) =>
+        content.querySelector(`#${config.addonRef}-${key}`);
+      panel._filterUnconfiguredServices();
+      assert.isTrue(serviceItem.hidden);
     }
   });
 

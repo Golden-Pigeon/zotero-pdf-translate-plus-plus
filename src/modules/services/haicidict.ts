@@ -1,9 +1,15 @@
+import { translationRequest } from "../../utils/http";
 import { TranslateService } from "./base";
 
 const translate = <TranslateService["translate"]>async function (data) {
-  const xhr = await Zotero.HTTP.request("GET", `https://dict.cn/${data.raw}`, {
-    responseType: "text",
-  });
+  const xhr = await translationRequest(
+    data,
+    "GET",
+    `https://dict.cn/${data.raw}`,
+    {
+      responseType: "text",
+    },
+  );
   if (xhr?.status !== 200) {
     throw `Request error: ${xhr?.status}`;
   }

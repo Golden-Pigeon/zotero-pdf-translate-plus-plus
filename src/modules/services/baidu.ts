@@ -1,3 +1,4 @@
+import { translationRequest } from "../../utils/http";
 import { TranslateService } from "./base";
 
 const translate: TranslateService["translate"] = async (data) => {
@@ -15,7 +16,8 @@ const translate: TranslateService["translate"] = async (data) => {
   );
 
   // Request
-  const xhr = await Zotero.HTTP.request(
+  const xhr = await translationRequest(
+    data,
     "GET",
     `http://api.fanyi.baidu.com/api/trans/vip/translate?q=${encodeURIComponent(
       data.raw,

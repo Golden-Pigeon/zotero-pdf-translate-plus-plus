@@ -1,6 +1,11 @@
 import { config } from "../../package.json";
 import { renderMathInText, shouldRenderMath } from "../utils/mathRenderer";
 import { getPref } from "../utils/prefs";
+import { ensureMathStyles, MATH_ROOT_CLASS } from "../utils/mathStyles";
+import {
+  captureTranslationLifecycle,
+  isTranslationActive,
+} from "../utils/lifecycle";
 
 export class MathTextboxElement extends XULElementBase {
   private _textbox: XULTextBoxElement | null = null;
@@ -15,10 +20,6 @@ export class MathTextboxElement extends XULElementBase {
         <html:link
           rel="stylesheet"
           href="chrome://${config.addonRef}/content/styles/mathTextbox.css"
-        ></html:link>
-        <html:link
-          rel="stylesheet"
-          href="chrome://${config.addonRef}/content/styles/katex.min.css"
         ></html:link>
       </linkset>
     `);
@@ -79,6 +80,7 @@ export class MathTextboxElement extends XULElementBase {
   }
 
   private _showOverlay(): void {
+    if (!ensureMathStyles(this.ownerDocument)) return;
     const overlay = this._ensureOverlay();
     overlay.style.display = "block";
     this.toggleAttribute("overlay-visible", true);
@@ -104,7 +106,7 @@ export class MathTextboxElement extends XULElementBase {
       HTML_NS,
       "div",
     ) as unknown as HTMLElement;
-    overlay.className = "math-overlay";
+    overlay.className = `math-overlay ${MATH_ROOT_CLASS}`;
     overlay.style.display = "none";
     overlay.addEventListener("click", () => {
       this._hideOverlay();
@@ -120,9 +122,24 @@ export class MathTextboxElement extends XULElementBase {
       return;
     }
     const win = this.ownerDocument.defaultView;
+    const lifecycle = captureTranslationLifecycle(
+      Reflect.get(Zotero, config.addonInstance),
+    );
     const render = () => {
       this._overlayFrame = null;
       if (!this._overlay) {
+        return;
+      }
+      if (!isTranslationActive(lifecycle)) return;
+      if (
+        !this.isConnected ||
+        !shouldRenderMath(
+          this._value,
+          getPref("enableMathRendering") === true,
+        ) ||
+        !ensureMathStyles(this.ownerDocument)
+      ) {
+        this._hideOverlay();
         return;
       }
       this._overlay.innerHTML = renderMathInText(
