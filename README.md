@@ -1,12 +1,23 @@
-# ![Translate for Zotero](addon/chrome/content/icons/favicon.png)Translate for Zotero
+# ![Translate for Zotero++](addon/chrome/content/icons/favicon.png)Translate for Zotero++
 
 [![zotero target version](https://img.shields.io/badge/Zotero-7/8-green?style=flat-square&logo=zotero&logoColor=CC2936)](https://www.zotero.org)
 [![Using Zotero Plugin Template](https://img.shields.io/badge/Using-Zotero%20Plugin%20Template-blue?style=flat-square&logo=github)](https://github.com/windingwind/zotero-plugin-template)
 
-_Translate for Zotero_, a.k.a. _Zotero PDF Translate_, is a [Zotero](https://www.zotero.org/) plugin.  
+_Translate for Zotero++_ (`zotero-pdf-translate-plus-plus`) is an independently maintained [Zotero](https://www.zotero.org/) plugin based on [Translate for Zotero](https://github.com/windingwind/zotero-pdf-translate).
+
 Translate PDF, EPub, webpage, metadata, annotations, notes to the target language. Support 20+ translate services.
 
-[中文文档](https://zotero.yuque.com/books/share/4443494c-c698-4e08-9d1e-ed253390346d)
+## Why This Independent Repository Exists / 为什么建立独立仓库
+
+本项目由 Golden-Pigeon 独立维护。我于 2026 年 5 月 15 日（UTC）向上游提交了 [PR #1425](https://github.com/windingwind/zotero-pdf-translate/pull/1425)，为阅读器翻译弹窗增加数学公式渲染支持。上游维护者在 [6 月 1 日的回复](https://github.com/windingwind/zotero-pdf-translate/pull/1425#issuecomment-4593330204)中表示，由于计划重构插件，该 PR 将暂缓处理；在 [9 月 1 日的回复](https://github.com/windingwind/zotero-pdf-translate/pull/1425#issuecomment-5493466398)中再次表示，该功能不会进入近期版本。截至 2026 年 9 月 8 日，该 PR 已等待数月，仍未合并；期间其他贡献者的 PR 仍有合并，例如 [#1434](https://github.com/windingwind/zotero-pdf-translate/pull/1434)、[#1456](https://github.com/windingwind/zotero-pdf-translate/pull/1456) 和 [#1465](https://github.com/windingwind/zotero-pdf-translate/pull/1465)。因此，我决定建立独立仓库，继续开发、维护和发布这些改进。
+
+I submitted [PR #1425](https://github.com/windingwind/zotero-pdf-translate/pull/1425) on May 15, 2026 (UTC), adding math rendering to the reader translation popup. The upstream maintainer [deferred it on June 1 because of a planned plugin refactor](https://github.com/windingwind/zotero-pdf-translate/pull/1425#issuecomment-4593330204) and [reiterated on September 1 that the feature would not be included in upcoming releases](https://github.com/windingwind/zotero-pdf-translate/pull/1425#issuecomment-5493466398). As of September 8, 2026, the PR remains unmerged after several months, while other contributors' PRs, including [#1434](https://github.com/windingwind/zotero-pdf-translate/pull/1434), [#1456](https://github.com/windingwind/zotero-pdf-translate/pull/1456), and [#1465](https://github.com/windingwind/zotero-pdf-translate/pull/1465), have been merged during that period. I therefore established this independent repository to continue developing, maintaining, and releasing these improvements.
+
+The initial independent release, **2.4.8 (September 8, 2026)**, merges the upstream `main` at [`eae077e`](https://github.com/windingwind/zotero-pdf-translate/commit/eae077e) with all seven commits from my `math-rendering-reader-popup` branch through [`44f081e`](https://github.com/Golden-Pigeon/zotero-pdf-translate/commit/44f081e). It includes popup math rendering, streaming updates, line-break normalization, and popup sizing fixes.
+
+This project is maintained by **Golden-Pigeon** and is not an official upstream release. Original work by **windingwind and the upstream contributors** remains credited. The project continues under **AGPL-3.0-or-later**; see [LICENSE](LICENSE). Report issues with this version in [this repository](https://github.com/Golden-Pigeon/zotero-pdf-translate-plus-plus/issues).
+
+[上游中文使用文档](https://zotero.yuque.com/books/share/4443494c-c698-4e08-9d1e-ed253390346d)
 
 ![](docs/res/translate.gif)
 
@@ -15,8 +26,8 @@ Translate PDF, EPub, webpage, metadata, annotations, notes to the target languag
 ## Install
 
 - Download the plugin (.xpi file) from below.
-  - [Latest Stable](https://github.com/windingwind/zotero-pdf-translate/releases/latest)
-  - [All Releases](https://github.com/windingwind/zotero-pdf-translate/releases)
+  - [Latest Stable](https://github.com/Golden-Pigeon/zotero-pdf-translate-plus-plus/releases/latest)
+  - [All Releases](https://github.com/Golden-Pigeon/zotero-pdf-translate-plus-plus/releases)
 
   _Note_ If you're using Firefox as your browser, right-click the `.xpi` and select "Save As.."
 
@@ -25,6 +36,10 @@ Translate PDF, EPub, webpage, metadata, annotations, notes to the target languag
 - Select `Install Plugin from file`.
 - Browse to where you downloaded the `.xpi` file and select it.
 - Finish!
+
+This version keeps the upstream plugin ID and preference keys. Installing it replaces the original plugin and preserves existing settings; the two versions cannot run side by side. Future automatic updates come from this independent repository.
+
+本版本保留原插件 ID 和设置项。安装后会替换原插件并沿用现有设置，两个版本不能同时运行；后续自动更新来自本独立仓库。
 
 ## Usage
 
@@ -284,9 +299,9 @@ This plugin is built based on the [Zotero Plugin Template](https://github.com/wi
 To startup, run
 
 ```bash
-git clone https://github.com/windingwind/zotero-pdf-translate.git
-cd zotero-pdf-translate
-npm install
+git clone https://github.com/Golden-Pigeon/zotero-pdf-translate-plus-plus.git
+cd zotero-pdf-translate-plus-plus
+npm ci
 npm run build
 ```
 
@@ -306,22 +321,26 @@ The plugin is built to `./build/*.xpi`.
 
 Use this code under AGPL. No warranties are provided. Keep the laws of your locality in mind!
 
-## My Zotero Plugins
+## Other Plugins by the Upstream Author
 
 - [Better Notes for Zotero](https://github.com/windingwind/zotero-better-notes): Everything about note management. All in Zotero.
 - [Actions & Tags for Zotero](https://github.com/windingwind/zotero-tag): Customize your Zotero workflow.
 - [Bionic for Zotero](https://github.com/windingwind/bionic-for-zotero): Bionic reading experience with Zotero.
 
-## Sponsors
+## Upstream Sponsors
 
 Thanks
 [peachgirl100](https://github.com/peachgirl100),
 [youngfish42](https://github.com/youngfish42),
 and other anonymous sponsors!
 
-If you want to leave your name here, please email me or leave a message with the donation.
+These acknowledgements are retained from the upstream project.
 
 ## Contributors
+
+Independent maintenance and reader popup math rendering: [Golden-Pigeon](https://github.com/Golden-Pigeon).
+
+Original project: [windingwind and the upstream contributors](https://github.com/windingwind/zotero-pdf-translate/graphs/contributors).
 
 <a href="https://github.com/windingwind/zotero-pdf-translate/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=windingwind/zotero-pdf-translate" />

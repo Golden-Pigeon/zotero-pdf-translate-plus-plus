@@ -1,9 +1,9 @@
 {
-  "name": "zotero-pdf-translate",
-  "version": "2.4.7",
-  "description": "Translate PDF, EPub, webpage, metadata, annotations, notes to the target language. Support 20+ translate services.",
+  "name": "zotero-pdf-translate-plus-plus",
+  "version": "2.4.8",
+  "description": "Independently maintained Zotero translation plugin with reader popup math rendering and 20+ translation services.",
   "config": {
-    "addonName": "Translate for Zotero",
+    "addonName": "Translate for Zotero++",
     "addonID": "zoteropdftranslate@euclpts.com",
     "addonRef": "zoteropdftranslate",
     "prefsPrefix": "extensions.zotero.ZoteroPDFTranslate",
@@ -20,14 +20,24 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/windingwind/zotero-pdf-translate.git"
+    "url": "git+https://github.com/Golden-Pigeon/zotero-pdf-translate-plus-plus.git"
   },
-  "author": "windingwind",
+  "author": "Golden-Pigeon",
+  "contributors": [
+    {
+      "name": "windingwind",
+      "url": "https://github.com/windingwind"
+    },
+    {
+      "name": "Upstream contributors",
+      "url": "https://github.com/windingwind/zotero-pdf-translate/graphs/contributors"
+    }
+  ],
   "license": "AGPL-3.0-or-later",
   "bugs": {
-    "url": "https://github.com/windingwind/zotero-pdf-translate/issues"
+    "url": "https://github.com/Golden-Pigeon/zotero-pdf-translate-plus-plus/issues"
   },
-  "homepage": "https://github.com/windingwind/zotero-pdf-translate#readme",
+  "homepage": "https://github.com/Golden-Pigeon/zotero-pdf-translate-plus-plus#readme",
   "dependencies": {
     "franc": "^6.2.0",
     "iso639-js": "^1.1.3",

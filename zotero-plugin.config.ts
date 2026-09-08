@@ -1,11 +1,13 @@
 import { defineConfig } from "zotero-plugin-scaffold";
 import pkg from "./package.json";
-import { copyFileSync } from "fs";
+import { copyFileSync, readFileSync } from "fs";
+import { join } from "path";
 
 export default defineConfig({
   source: ["src", "addon"],
   dist: "build",
   name: pkg.config.addonName,
+  xpiName: pkg.name,
   id: pkg.config.addonID,
   namespace: pkg.config.addonRef,
   updateURL: `https://github.com/{{owner}}/{{repo}}/releases/download/release/${
@@ -20,6 +22,12 @@ export default defineConfig({
 
   build: {
     assets: ["addon/**/*.*"],
+    hooks: {
+      "build:copyAssets": (ctx) => {
+        copyFileSync("LICENSE", join(ctx.dist, "addon", "LICENSE"));
+        copyFileSync("README.md", join(ctx.dist, "addon", "README.md"));
+      },
+    },
     define: {
       ...pkg.config,
       author: pkg.author,
@@ -53,11 +61,14 @@ export default defineConfig({
     //   },
     // },
   },
-  // release: {
-  //   bumpp: {
-  //     execute: "npm run build",
-  //   },
-  // },
+  release: {
+    github: {
+      releaseNote: (ctx) =>
+        ctx.version === "2.4.8"
+          ? readFileSync("docs/releases/2.4.8.md", "utf8")
+          : ctx.release.changelog,
+    },
+  },
 
   // If you need to see a more detailed build log, uncomment the following line:
   // logLevel: "trace",

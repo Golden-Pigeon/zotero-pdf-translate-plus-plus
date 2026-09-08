@@ -8,3 +8,4 @@ zotero-cmd.json
 .DS_Store
 .env
 .scaffold
+.codegraph/

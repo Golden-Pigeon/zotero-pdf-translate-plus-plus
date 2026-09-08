@@ -47,7 +47,7 @@ service-gramotadict=Gramota.ru(ru)
 service-errorPrefix=[Request Error]
     Service not available, invalid secret, or request too fast.
     Use another translation service or post the issue here: 
-    https://github.com/windingwind/zotero-pdf-translate/issues
+    https://github.com/Golden-Pigeon/zotero-pdf-translate-plus-plus/issues
     
     The message below is not Zotero or the Translate plugin, but from
 
