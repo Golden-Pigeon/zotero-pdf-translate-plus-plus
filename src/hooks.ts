@@ -17,6 +17,7 @@ import {
   addTranslateTask,
   addTranslateTitleTask,
   getLastTranslateTask,
+  normalizeRawText,
   TranslateTask,
 } from "./utils/task";
 import { setDefaultPrefSettings } from "./modules/defaultPrefs";
@@ -331,7 +332,11 @@ function onReaderPopupShow(
   if (!isOwnInstanceActive()) return;
   const selection = addon.data.translate.selectedText;
   const task = getLastTranslateTask();
-  if (task?.raw === selection) {
+  // The reader re-fires this event on every popup re-render (each re-render
+  // wipes plugin content first). Only treat it as a new selection when the
+  // canonical text differs from the last task's raw, otherwise every re-fire
+  // would queue a duplicate task and restart auto-translation.
+  if (task?.raw === normalizeRawText(selection)) {
     buildReaderPopup(event);
     addon.hooks.onReaderPopupRefresh();
     return;

@@ -200,6 +200,19 @@ export class TranslateTaskRunner {
   }
 }
 
+/**
+ * Canonical form of task raw text.
+ *
+ * The reader fires `renderTextSelectionPopup` again on every popup re-render,
+ * and `onReaderPopupShow` reuses the last task only when the selection matches
+ * `task.raw`, so this must be the exact same transform applied in
+ * `addTranslateTask`.
+ */
+export function normalizeRawText(raw: string): string {
+  // eslint-disable-next-line no-control-regex
+  return raw.replace(/[\u0000-\u001F\u007F-\u009F]/gu, " ").normalize("NFKC");
+}
+
 export function addTranslateTask(
   raw: string,
   itemId?: number,
@@ -211,9 +224,7 @@ export function addTranslateTask(
   const addon = lifecycle.owner;
   type = type || "text";
   // Filter raw string
-
-  // eslint-disable-next-line no-control-regex
-  raw = raw.replace(/[\u0000-\u001F\u007F-\u009F]/gu, " ").normalize("NFKC");
+  raw = normalizeRawText(raw);
 
   // Append raw text to last task's raw if in concat mode
   const isConcatMode =
