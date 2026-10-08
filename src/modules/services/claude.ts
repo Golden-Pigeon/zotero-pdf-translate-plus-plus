@@ -58,6 +58,7 @@ const translate = <TranslateService["translate"]>async function (data) {
         let preLength = 0;
         let result = "";
         let buffer = ""; // Buffer to handle partial JSON chunks
+        let reportedResult: string | null = null;
 
         xmlhttp.onprogress = (e: any) => {
           try {
@@ -107,8 +108,12 @@ const translate = <TranslateService["translate"]>async function (data) {
             // Update the result
             data.result = result.replace(/^\n\n/, "");
 
-            // Refresh UI to show progress
-            refreshHandler();
+            // Refresh UI only when the result actually changed; the stream
+            // emits plenty of pre-content chunks that would otherwise flicker.
+            if (data.result !== reportedResult) {
+              reportedResult = data.result;
+              refreshHandler();
+            }
           } catch (error) {
             console.error("Error processing Claude stream:", error);
           }

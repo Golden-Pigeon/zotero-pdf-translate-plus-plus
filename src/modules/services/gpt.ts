@@ -167,6 +167,10 @@ const gptTranslate = async function (
     let preLength = 0;
     let result = "";
     let buffer = ""; // Buffer to store incomplete JSON fragments
+    // SSE connections emit many chunks before any content arrives (model
+    // reasoning, keep-alives). Refreshing on those made the popup re-measure
+    // its size at high frequency with unchanged text, i.e. flicker.
+    let reportedResult: string | null = null;
     xmlhttp.onprogress = (e: any) => {
       // Only concatenate the new strings
       const newResponse = e.target.response.slice(preLength);
@@ -232,7 +236,10 @@ const gptTranslate = async function (
       data.result = result.replace(/^\n\n/, "");
       preLength = e.target.response.length;
 
-      refreshHandler();
+      if (data.result !== reportedResult) {
+        reportedResult = data.result;
+        refreshHandler();
+      }
     };
   };
 

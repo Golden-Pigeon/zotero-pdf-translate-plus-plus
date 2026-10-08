@@ -50,6 +50,7 @@ const translate = <TranslateService["translate"]>async function (data) {
     requestObserver: (xmlhttp: XMLHttpRequest) => {
       let preLength = 0;
       let result = "";
+      let reportedResult: string | null = null;
       xmlhttp.onprogress = (e: any) => {
         // Only concatenate the new strings
         const newResponse = e.target.response.slice(preLength);
@@ -70,7 +71,10 @@ const translate = <TranslateService["translate"]>async function (data) {
         data.result = result;
         preLength = e.target.response.length;
 
-        refreshHandler();
+        if (data.result !== reportedResult) {
+          reportedResult = data.result;
+          refreshHandler();
+        }
       };
     },
   });

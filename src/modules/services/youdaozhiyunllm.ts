@@ -49,6 +49,7 @@ const translate: TranslateService["translate"] = async function (data) {
     let result = "";
     let buffer = "";
     let currentEventType = "";
+    let reportedResult: string | null = null;
     xmlhttp.onprogress = (e: any) => {
       // Only concatenate the new strings
       const newResponse = e.target.response.slice(preLength);
@@ -88,7 +89,10 @@ const translate: TranslateService["translate"] = async function (data) {
       }
 
       data.result = result;
-      refreshHandler();
+      if (data.result !== reportedResult) {
+        reportedResult = data.result;
+        refreshHandler();
+      }
     };
   };
 
