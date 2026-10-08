@@ -17,6 +17,8 @@ import {
 
 const popupMathOverlayFrames = new WeakMap<HTMLDivElement, number>();
 const popupTaskMaxWidths = new Map<string, number>();
+// Must stay in sync with the textarea/container minWidth in buildReaderPopup.
+const POPUP_MIN_TEXT_WIDTH = 184;
 
 export function updateReaderPopup() {
   const popup = addon.data.popup.currentPopup;
@@ -505,7 +507,11 @@ function updatePopupSize(
     return;
   }
   if (resetSize) {
-    textarea.style.width = "-moz-available";
+    // Start every measurement from the same fixed width. Resetting to
+    // `-moz-available` made the measurement depend on the width the previous
+    // cycle happened to leave behind, and the aspect-ratio test then flipped
+    // between two stable states on alternate refreshes (visible flicker).
+    textarea.style.width = `${POPUP_MIN_TEXT_WIDTH}px`;
     textarea.style.height = "30px";
   }
   const viewer = selectionMenu.ownerDocument.body;
@@ -643,6 +649,9 @@ function syncPopupRenderedTextContainer(
   const measurement = overlay.cloneNode(false) as HTMLDivElement;
   measurement.removeAttribute("id");
   measurement.innerHTML = overlay.innerHTML;
+  // Per-formula scroll containers would swallow the formula width, so the
+  // measurement clone opts out of them via this class.
+  measurement.classList.add(`${config.addonRef}-math-measure`);
   measurement.style.position = "absolute";
   measurement.style.inset = "auto";
   measurement.style.left = "-100000px";
@@ -654,9 +663,19 @@ function syncPopupRenderedTextContainer(
   measurement.style.width = `${width}px`;
   measurement.style.height = "auto";
   measurement.style.maxHeight = "none";
-  measurement.style.overflow = "visible";
+  // Hidden turns the clone into a scroll container, so scrollWidth reports
+  // how wide the rendered math needs to be.
+  measurement.style.overflow = "hidden";
 
   overlay.ownerDocument.body.appendChild(measurement);
+  // Prefer widening the popup (shifting it left if needed) over scrolling math.
+  const targetWidth = Math.min(
+    measurement.scrollWidth,
+    widenPopupForMath(container, measurement.scrollWidth, width),
+  );
+  if (targetWidth > width) {
+    measurement.style.width = `${targetWidth}px`;
+  }
   const renderedHeight = Math.max(
     30,
     Math.ceil(measurement.scrollHeight),
@@ -664,9 +683,49 @@ function syncPopupRenderedTextContainer(
   );
   measurement.remove();
 
+  if (targetWidth > width) {
+    container.style.width = `${targetWidth}px`;
+    textarea.style.width = `${targetWidth}px`;
+  }
   const height = `${renderedHeight}px`;
   container.style.height = height;
   textarea.style.height = height;
+}
+
+/**
+ * How much horizontal room the rendered math can get inside the viewer.
+ * When the popup's current position leaves too little room to the right,
+ * the popup itself is shifted left (up to the viewer's left edge) so even
+ * wide formulas fit without scrolling. Position is only shifted when the
+ * popup is placed via a pixel `left`, which is how the reader positions the
+ * selection popup.
+ */
+function widenPopupForMath(
+  container: HTMLDivElement,
+  neededWidth: number,
+  currentWidth: number,
+): number {
+  const selectionMenu = container.closest(
+    ".selection-popup",
+  ) as HTMLElement | null;
+  const viewer = selectionMenu?.ownerDocument.body;
+  if (!selectionMenu || !viewer) {
+    return currentWidth;
+  }
+  const margin = 12;
+  const viewerRect = viewer.getBoundingClientRect();
+  const popupRect = selectionMenu.getBoundingClientRect();
+  let available = viewerRect.right - popupRect.left - margin;
+  const leftInset = popupRect.left - viewerRect.left;
+  if (neededWidth > available && leftInset > 1) {
+    const shift = Math.min(leftInset, neededWidth - available);
+    const baseLeft = parseFloat(selectionMenu.style.left);
+    if (!Number.isNaN(baseLeft)) {
+      selectionMenu.style.left = `${baseLeft - shift}px`;
+      available += shift;
+    }
+  }
+  return Math.max(currentWidth, available);
 }
 
 function cancelPopupMathOverlayRender(overlay: HTMLDivElement): void {
