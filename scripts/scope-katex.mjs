@@ -55,24 +55,27 @@ export function scopeKatexCss(css, namespace) {
 }
 
 /**
- * Display-math overflow policy, appended after the scoped KaTeX CSS:
- * `.katex-display` sizes its child to the formula and centers it when it
- * fits; only when a formula cannot fit its container does it scroll
- * horizontally (scrollbar hidden; trackpad panning still works). The
- * block-level `max-content` child anchors to the left edge on overflow, so
- * the whole formula stays reachable by scrolling (KaTeX's centered `nowrap`
- * block would clip both sides instead). `min-width: 100%` keeps the block
- * full-width for fitting formulas, and the reserved `padding-right` on
- * `.katex-html` gives the `\tag` number its own slot at the right edge
- * instead of overlapping the formula's last symbol.
+ * Display-math sizing policy, appended after the scoped KaTeX CSS.
+ *
+ * `.katex-display` keeps its natural content sizing: `.katex` sizes to
+ * `max-content` (but never below the container width) so the equation number
+ * slot (`padding-right` on `.katex-html`) is always part of the reported
+ * content width. There are deliberately NO per-formula scroll containers —
+ * they would hide the true formula width from
+ * `syncPopupRenderedTextContainer`, which reads the live overlay's
+ * `scrollWidth` to widen the popup so even wide formulas render without
+ * scrolling. When a formula is wider than the whole reader, the popup overlay
+ * itself (the `.${namespace}-math-root` element, `overflow: auto`) is the
+ * single horizontal scroll fallback; its scrollbar is hidden but trackpad
+ * panning keeps the equation number reachable.
  */
 export function katexDisplayOverflowOverrides(namespace) {
   const root = `.${namespace}-math-root`;
-  return `/* ${namespace}: display math sizes to content and only scrolls when it cannot fit. */
-${root} .katex-display {
-  overflow-x: auto;
-  overflow-y: hidden;
+  return `/* ${namespace}: display math sizes to content; the popup widens instead of scrolling per formula. */
+${root} {
   scrollbar-width: none;
+}
+${root} .katex-display {
   padding: 0.15em 0;
 }
 ${root} .katex-display > .katex {
@@ -84,10 +87,6 @@ ${root} .katex-display > .katex {
 /* Reserve room for the \\tag number so it never overlaps the formula. */
 ${root} .katex-display > .katex > .katex-html {
   padding-right: 2.5em;
-}
-/* Offscreen measurement clones must see the full unwrapped formula width. */
-${root}.${namespace}-math-measure .katex-display {
-  overflow: visible;
 }
 `;
 }

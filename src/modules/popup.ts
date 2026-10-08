@@ -624,6 +624,20 @@ function schedulePopupMathOverlayRender(
     }
     overlay.innerHTML = renderMathInText(overlay.ownerDocument, textarea.value);
     syncPopupRenderedTextContainer(container, textarea, overlay);
+    // KaTeX fonts load asynchronously; the first measurement can run on
+    // fallback-font metrics and under/over-report the formula width. Re-sync
+    // once the document fonts settle.
+    overlay.ownerDocument.fonts?.ready
+      .then(() => {
+        if (
+          overlay.isConnected &&
+          !container.hidden &&
+          isTranslationActive(lifecycle)
+        ) {
+          syncPopupRenderedTextContainer(container, textarea, overlay);
+        }
+      })
+      .catch(() => {});
   };
   const win = overlay.ownerDocument.defaultView;
   if (win?.requestAnimationFrame) {
@@ -646,47 +660,21 @@ function syncPopupRenderedTextContainer(
     return;
   }
 
-  const measurement = overlay.cloneNode(false) as HTMLDivElement;
-  measurement.removeAttribute("id");
-  measurement.innerHTML = overlay.innerHTML;
-  // Per-formula scroll containers would swallow the formula width, so the
-  // measurement clone opts out of them via this class.
-  measurement.classList.add(`${config.addonRef}-math-measure`);
-  measurement.style.position = "absolute";
-  measurement.style.inset = "auto";
-  measurement.style.left = "-100000px";
-  measurement.style.top = "0";
-  measurement.style.visibility = "hidden";
-  measurement.style.pointerEvents = "none";
-  measurement.style.display = "block";
-  measurement.style.boxSizing = overlay.style.boxSizing;
-  measurement.style.width = `${width}px`;
-  measurement.style.height = "auto";
-  measurement.style.maxHeight = "none";
-  // Hidden turns the clone into a scroll container, so scrollWidth reports
-  // how wide the rendered math needs to be.
-  measurement.style.overflow = "hidden";
-
-  overlay.ownerDocument.body.appendChild(measurement);
-  // Prefer widening the popup (shifting it left if needed) over scrolling math.
+  // The overlay already holds the live rendered content behind
+  // `overflow: auto`, so its scroll dimensions report exactly how much room
+  // the math needs — including the equation-number slot, which per-formula
+  // scroll containers would swallow.
+  const neededWidth = Math.ceil(overlay.scrollWidth);
   const targetWidth = Math.min(
-    measurement.scrollWidth,
-    widenPopupForMath(container, measurement.scrollWidth, width),
+    neededWidth,
+    widenPopupForMath(container, neededWidth, width),
   );
-  if (targetWidth > width) {
-    measurement.style.width = `${targetWidth}px`;
-  }
-  const renderedHeight = Math.max(
-    30,
-    Math.ceil(measurement.scrollHeight),
-    Math.ceil(measurement.offsetHeight),
-  );
-  measurement.remove();
-
   if (targetWidth > width) {
     container.style.width = `${targetWidth}px`;
     textarea.style.width = `${targetWidth}px`;
   }
+  // Read after the width change so wrapped lines reflow first.
+  const renderedHeight = Math.max(30, Math.ceil(overlay.scrollHeight) + 2);
   const height = `${renderedHeight}px`;
   container.style.height = height;
   textarea.style.height = height;
@@ -696,9 +684,9 @@ function syncPopupRenderedTextContainer(
  * How much horizontal room the rendered math can get inside the viewer.
  * When the popup's current position leaves too little room to the right,
  * the popup itself is shifted left (up to the viewer's left edge) so even
- * wide formulas fit without scrolling. Position is only shifted when the
- * popup is placed via a pixel `left`, which is how the reader positions the
- * selection popup.
+ * wide formulas fit without scrolling. The shift is applied through an
+ * accumulated negative margin so it works no matter how Zotero positions
+ * the selection popup (Zotero 7 does not use a pixel `style.left`).
  */
 function widenPopupForMath(
   container: HTMLDivElement,
@@ -713,17 +701,24 @@ function widenPopupForMath(
     return currentWidth;
   }
   const margin = 12;
+  // Zotero's own popup CSS can clamp the width; the reader popup is allowed
+  // to span the whole viewer while math is rendered.
+  selectionMenu.style.maxWidth = "none";
   const viewerRect = viewer.getBoundingClientRect();
   const popupRect = selectionMenu.getBoundingClientRect();
   let available = viewerRect.right - popupRect.left - margin;
   const leftInset = popupRect.left - viewerRect.left;
   if (neededWidth > available && leftInset > 1) {
     const shift = Math.min(leftInset, neededWidth - available);
-    const baseLeft = parseFloat(selectionMenu.style.left);
-    if (!Number.isNaN(baseLeft)) {
-      selectionMenu.style.left = `${baseLeft - shift}px`;
-      available += shift;
-    }
+    // Zotero 7 positions the selection popup without a pixel `style.left`,
+    // so the shift is applied through margins, which move the box visually
+    // regardless of how it was positioned. Accumulate across repeated syncs
+    // by reading the computed margin first.
+    const win = selectionMenu.ownerDocument.defaultView!;
+    const computedStyle = win.getComputedStyle(selectionMenu);
+    const currentMargin = parseFloat(computedStyle?.marginLeft ?? "0") || 0;
+    selectionMenu.style.marginLeft = `${currentMargin - shift}px`;
+    available += shift;
   }
   return Math.max(currentWidth, available);
 }

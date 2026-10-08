@@ -1045,11 +1045,11 @@ export const KATEX_SCOPED_CSS = `@font-face {
 .zoteropdftranslateplusplus-math-root body {
   counter-reset: katexEqnNo mmlEqnNo;
 }
-/* zoteropdftranslateplusplus: display math sizes to content and only scrolls when it cannot fit. */
-.zoteropdftranslateplusplus-math-root .katex-display {
-  overflow-x: auto;
-  overflow-y: hidden;
+/* zoteropdftranslateplusplus: display math sizes to content; the popup widens instead of scrolling per formula. */
+.zoteropdftranslateplusplus-math-root {
   scrollbar-width: none;
+}
+.zoteropdftranslateplusplus-math-root .katex-display {
   padding: 0.15em 0;
 }
 .zoteropdftranslateplusplus-math-root .katex-display > .katex {
@@ -1061,9 +1061,5 @@ export const KATEX_SCOPED_CSS = `@font-face {
 /* Reserve room for the \\tag number so it never overlaps the formula. */
 .zoteropdftranslateplusplus-math-root .katex-display > .katex > .katex-html {
   padding-right: 2.5em;
-}
-/* Offscreen measurement clones must see the full unwrapped formula width. */
-.zoteropdftranslateplusplus-math-root.zoteropdftranslateplusplus-math-measure .katex-display {
-  overflow: visible;
 }
 `;
