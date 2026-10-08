@@ -661,20 +661,42 @@ function syncPopupRenderedTextContainer(
   }
 
   // The overlay already holds the live rendered content behind
-  // `overflow: auto`, so its scroll dimensions report exactly how much room
-  // the math needs — including the equation-number slot, which per-formula
+  // `overflow: auto`, so its scroll width reports exactly how much room the
+  // math needs — including the equation-number slot, which per-formula
   // scroll containers would swallow.
   const neededWidth = Math.ceil(overlay.scrollWidth);
   const targetWidth = Math.min(
     neededWidth,
     widenPopupForMath(container, neededWidth, width),
   );
+  const finalWidth = Math.max(width, targetWidth);
   if (targetWidth > width) {
-    container.style.width = `${targetWidth}px`;
-    textarea.style.width = `${targetWidth}px`;
+    container.style.width = `${finalWidth}px`;
+    textarea.style.width = `${finalWidth}px`;
   }
-  // Read after the width change so wrapped lines reflow first.
-  const renderedHeight = Math.max(30, Math.ceil(overlay.scrollHeight) + 2);
+
+  // The live overlay cannot report the content height: it is stretched to
+  // the container's current height (`inset: 0`) and scrollHeight never
+  // reports less than clientHeight, so a container left tall by the raw
+  // LaTeX text would keep a blank strip under the rendered math. Measure
+  // the height on an offscreen auto-height clone at the final width.
+  const measurement = overlay.cloneNode(false) as HTMLDivElement;
+  measurement.removeAttribute("id");
+  measurement.innerHTML = overlay.innerHTML;
+  measurement.style.position = "absolute";
+  measurement.style.inset = "auto";
+  measurement.style.left = "-100000px";
+  measurement.style.top = "0";
+  measurement.style.visibility = "hidden";
+  measurement.style.pointerEvents = "none";
+  measurement.style.width = `${finalWidth}px`;
+  measurement.style.height = "auto";
+  measurement.style.maxHeight = "none";
+  measurement.style.overflow = "hidden";
+  overlay.ownerDocument.body.appendChild(measurement);
+  const renderedHeight = Math.max(30, Math.ceil(measurement.scrollHeight) + 2);
+  measurement.remove();
+
   const height = `${renderedHeight}px`;
   container.style.height = height;
   textarea.style.height = height;
