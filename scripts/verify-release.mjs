@@ -29,8 +29,8 @@ const hash = `sha512:${createHash("sha512").update(artifact).digest("hex")}`;
 const manifest = json("build/addon/manifest.json");
 const app = manifest.applications.zotero;
 const compatibility = {
-  strict_min_version: "9.0",
-  strict_max_version: "9.0.*",
+  strict_min_version: "7.9.9",
+  strict_max_version: "10.9.9",
 };
 assert.notEqual(addonID, legacyID);
 assert.equal(app.id, addonID);
