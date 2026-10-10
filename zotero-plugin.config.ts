@@ -4,7 +4,10 @@ import { copyFileSync, existsSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import legacyUpdate from "./updates/legacy-2.4.8.json";
 import { panelTag, mathTag } from "./src/utils/elementNames";
-import { writeScopedKatexStyles, writeInlineKatexModule } from "./scripts/scope-katex.mjs";
+import {
+  writeScopedKatexStyles,
+  writeInlineKatexModule,
+} from "./scripts/scope-katex.mjs";
 
 export default defineConfig({
   source: ["src", "addon"],
