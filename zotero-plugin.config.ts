@@ -83,6 +83,9 @@ export default defineConfig({
   },
   release: {
     github: {
+      // Tag of the release that hosts update.json/update-beta.json; without
+      // this the scaffold skips refreshing the update manifest on publish.
+      updater: "release",
       releaseNote: (ctx) => {
         const path = `docs/releases/${ctx.version}.md`;
         return existsSync(path)
