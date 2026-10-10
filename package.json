@@ -1,6 +1,6 @@
 {
   "name": "zotero-pdf-translate-plus-plus",
-  "version": "2.4.11",
+  "version": "2.5.0",
   "description": "Independently maintained Zotero translation plugin with reader popup math rendering and 20+ translation services.",
   "config": {
     "addonName": "Translate for Zotero++",
