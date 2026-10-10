@@ -166,6 +166,9 @@ field-titleTranslation=Title Translation
 field-abstractTranslation=Abstract Translation
 
 status-translating=Translating...
+status-prefill=Prefill
+status-decode=Decode
+status-fail=Failed
 sideBarIcon-title=Translate annotation
 
 service-manageKeys-title=Manage Translation Service Keys

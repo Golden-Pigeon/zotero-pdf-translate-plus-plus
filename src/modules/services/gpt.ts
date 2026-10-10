@@ -1,5 +1,11 @@
 import { translationRequest } from "../../utils/http";
 import { getPref, getString, transformPromptWithContext } from "../../utils";
+import {
+  beginTaskProgress,
+  markTaskStreamChunk,
+  markTaskUsage,
+  TranslateTask,
+} from "../../utils/task";
 import { TranslateService } from "./base";
 import { hasSourceTextPlaceholder } from "./gptPrompt";
 
@@ -126,6 +132,53 @@ function parseNonStreamResponse(obj: any): string {
   return "";
 }
 
+interface ParsedUsage {
+  input?: number;
+  output?: number;
+}
+
+/**
+ * Extract token usage from a Chat Completions payload.
+ * Covers OpenAI-compatible `usage`, and Ollama's native
+ * `prompt_eval_count`/`eval_count` counters.
+ */
+function parseChatUsage(obj: any): ParsedUsage | undefined {
+  if (obj.usage) {
+    return {
+      input: obj.usage.prompt_tokens ?? obj.usage.input_tokens,
+      output: obj.usage.completion_tokens ?? obj.usage.output_tokens,
+    };
+  }
+  if (
+    typeof obj.prompt_eval_count === "number" ||
+    typeof obj.eval_count === "number"
+  ) {
+    return { input: obj.prompt_eval_count, output: obj.eval_count };
+  }
+  return undefined;
+}
+
+/**
+ * Extract token usage from a Responses API payload.
+ * Streaming: the `response.completed` event carries `response.usage`;
+ * non-streaming: usage sits at the top level.
+ */
+function parseResponsesApiUsage(obj: any): ParsedUsage | undefined {
+  if (obj.type === "response.completed" && obj.response?.usage) {
+    return {
+      input: obj.response.usage.input_tokens,
+      output: obj.response.usage.output_tokens,
+    };
+  }
+  if (obj.usage) {
+    return {
+      input: obj.usage.input_tokens ?? obj.usage.prompt_tokens,
+      output: obj.usage.output_tokens ?? obj.usage.completion_tokens,
+    };
+  }
+  return undefined;
+}
+
 const gptTranslate = async function (
   apiURL: string,
   model: string,
@@ -172,6 +225,9 @@ const gptTranslate = async function (
     // its size at high frequency with unchanged text, i.e. flicker.
     let reportedResult: string | null = null;
     xmlhttp.onprogress = (e: any) => {
+      // The chunk loop below shadows `data` with each SSE fragment; keep an
+      // explicit handle on the translate task for progress bookkeeping.
+      const task = data;
       // Only concatenate the new strings
       const newResponse = e.target.response.slice(preLength);
 
@@ -212,6 +268,15 @@ const gptTranslate = async function (
             ? parseResponsesApiStreamResponse(obj)
             : parseStreamResponse(obj);
 
+          if (content) {
+            markTaskStreamChunk(task);
+          }
+          const usage = useResponsesApi
+            ? parseResponsesApiUsage(obj)
+            : parseChatUsage(obj);
+          if (usage) {
+            markTaskUsage(task, usage.input, usage.output);
+          }
           result += content;
           if (finished) {
             break;
@@ -256,6 +321,12 @@ const gptTranslate = async function (
         const resultContent = useResponsesApi
           ? parseResponsesApiNonStreamResponse(responseObj)
           : parseNonStreamResponse(responseObj);
+        const usage = useResponsesApi
+          ? parseResponsesApiUsage(responseObj)
+          : parseChatUsage(responseObj);
+        if (usage) {
+          markTaskUsage(data, usage.input, usage.output);
+        }
         data.result = resultContent.replace(/^\n\n/, "");
       } catch (error) {
         // throw `Failed to parse response: ${error}`;
@@ -286,6 +357,9 @@ const gptTranslate = async function (
         ],
         temperature: temperature,
         stream: streamMode,
+        // Ask OpenAI-compatible endpoints to report token usage on the last
+        // streamed chunk. Custom params spread later and can override this.
+        ...(streamMode ? { stream_options: { include_usage: true } } : {}),
         ...getCustomParams(prefix),
       };
 
@@ -298,6 +372,9 @@ const gptTranslate = async function (
     body: JSON.stringify(requestBody),
     responseType: "text",
     requestObserver: (xmlhttp: XMLHttpRequest) => {
+      // The observer fires when the request is about to be sent; this is the
+      // most accurate prefill start marker.
+      beginTaskProgress(data, true);
       if (streamMode) {
         streamCallback(xmlhttp);
       } else {

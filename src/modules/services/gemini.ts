@@ -1,5 +1,10 @@
 import { translationRequest } from "../../utils/http";
 import { getPref, transformPromptWithContext } from "../../utils";
+import {
+  beginTaskProgress,
+  markTaskStreamChunk,
+  markTaskUsage,
+} from "../../utils/task";
 import { TranslateService } from "./base";
 import type { TranslateTask } from "../../utils/task";
 
@@ -48,18 +53,39 @@ const translate = <TranslateService["translate"]>async function (data) {
     }),
     responseType: "text",
     requestObserver: (xmlhttp: XMLHttpRequest) => {
+      beginTaskProgress(data, true);
       let preLength = 0;
       let result = "";
       let reportedResult: string | null = null;
       xmlhttp.onprogress = (e: any) => {
+        // The chunk loop below shadows `data` with each SSE fragment; keep an
+        // explicit handle on the translate task for progress bookkeeping.
+        const task = data;
         // Only concatenate the new strings
         const newResponse = e.target.response.slice(preLength);
         const dataArray = newResponse.split("data: ");
 
         for (const data of dataArray) {
-          if (data) {
-            result +=
-              JSON.parse(data).candidates[0].content.parts[0].text || "";
+          if (!data) {
+            continue;
+          }
+          try {
+            const obj = JSON.parse(data);
+            const text = obj.candidates?.[0]?.content?.parts?.[0]?.text || "";
+            if (text) {
+              markTaskStreamChunk(task);
+              result += text;
+            }
+            const usage = obj.usageMetadata;
+            if (usage) {
+              markTaskUsage(
+                task,
+                usage.promptTokenCount,
+                usage.candidatesTokenCount,
+              );
+            }
+          } catch {
+            // Skip chunks that are not complete JSON objects
           }
         }
 

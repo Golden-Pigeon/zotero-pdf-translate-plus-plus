@@ -52,6 +52,7 @@ export type FluentMessageId =
   | 'pref-basic-enableNote'
   | 'pref-basic-enableNoteReplaceMode'
   | 'pref-basic-enablePopup'
+  | 'pref-basic-enablePopupStatus'
   | 'pref-general'
   | 'pref-interface'
   | 'pref-interface-enableConcatKey'
@@ -244,6 +245,9 @@ export type FluentMessageId =
   | 'service-youdaozhiyunllm-dialog-prompt'
   | 'service-youdaozhiyunllm-dialog-stream'
   | 'sideBarIcon-title'
+  | 'status-decode'
+  | 'status-fail'
+  | 'status-prefill'
   | 'status-translating'
   | 'swapLanguage'
   | 'translate';

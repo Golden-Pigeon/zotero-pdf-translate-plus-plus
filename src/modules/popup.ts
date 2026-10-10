@@ -2,7 +2,11 @@ import { SVGIcon } from "../utils/config";
 import { config } from "../../package.json";
 import { getString } from "../utils/locale";
 import { getPref, setPref } from "../utils/prefs";
-import { addTranslateTask, getLastTranslateTask } from "../utils/task";
+import {
+  addTranslateTask,
+  getLastTranslateTask,
+  TranslateTask,
+} from "../utils/task";
 import { slice } from "../utils/str";
 import {
   getMathOverlayState,
@@ -51,6 +55,9 @@ export function updateReaderPopup() {
   const addToNoteButton = popup?.querySelector(
     `#${makeId("addtonote")}`,
   ) as HTMLDivElement;
+  const statusBox = popup?.querySelector(
+    `#${makeId("status")}`,
+  ) as HTMLDivElement;
 
   const updateHidden = (elem: HTMLElement, hidden: boolean) => {
     if (hidden) {
@@ -69,6 +76,10 @@ export function updateReaderPopup() {
     updateHidden(textarea, true);
     updateHidden(mathOverlay, true);
     updateHidden(addToNoteButton, true);
+    if (statusBox) {
+      stopPopupStatusTimer(statusBox);
+      updateHidden(statusBox, true);
+    }
     return;
   }
   updateHidden(audiobox, false);
@@ -79,6 +90,10 @@ export function updateReaderPopup() {
   updateHidden(addToNoteButton, false);
   const task = getLastTranslateTask({ type: "text" });
   if (!task) {
+    if (statusBox) {
+      stopPopupStatusTimer(statusBox);
+      updateHidden(statusBox, true);
+    }
     return;
   }
   popup.setAttribute("translate-task-id", task.id);
@@ -149,6 +164,10 @@ export function updateReaderPopup() {
     !enableAddToNote
   ) {
     updateHidden(addToNoteButton, true);
+  }
+
+  if (statusBox) {
+    updatePopupStatus(statusBox, task);
   }
 }
 
@@ -225,6 +244,21 @@ export function buildReaderPopup(
               },
             },
           ],
+          ignoreIfExists: true,
+        },
+        {
+          tag: "div",
+          namespace: "html",
+          id: makeId("status"),
+          classList: [
+            `${config.addonRef}-popup-status`,
+            `${config.addonRef}-readerpopup`,
+          ],
+          // Populated by updatePopupStatus; hidden until there is something
+          // to show so the waiting-state popup keeps its original height.
+          styles: {
+            display: "none",
+          },
           ignoreIfExists: true,
         },
         {
@@ -752,4 +786,299 @@ function cancelPopupMathOverlayRender(overlay: HTMLDivElement): void {
   }
   overlay.ownerDocument.defaultView?.cancelAnimationFrame?.(frame);
   popupMathOverlayFrames.delete(overlay);
+}
+
+// ---- Translation status row (prefill / decode / token usage) ----
+
+const popupStatusTimers = new WeakMap<HTMLDivElement, number>();
+
+function ensurePopupStatusStyles(doc: Document): void {
+  const css = buildPopupStatusStylesCss();
+  const styleId = `${config.addonRef}-popup-status-styles`;
+  const parent = doc.head ?? doc.documentElement;
+  if (!parent) {
+    return;
+  }
+  // Reader documents outlive plugin reloads (dev hot-reload) and upgrades, so
+  // an older revision of this stylesheet may still be in the document. Match
+  // on content and replace it whenever it no longer matches.
+  const existing = doc.getElementById(styleId) as HTMLStyleElement | null;
+  if (existing) {
+    if (existing.textContent === css) {
+      return;
+    }
+    existing.remove();
+  }
+  const style = doc.createElement("style");
+  style.id = styleId;
+  style.textContent = css;
+  parent.appendChild(style);
+}
+
+function buildPopupStatusStylesCss(): string {
+  const c = `${config.addonRef}-popup-status`;
+  return `
+.${c} { display: flex; align-items: center; justify-content: flex-start;
+  gap: 6px; margin: 0 6px 2px; padding: 0 3px; min-height: 20px;
+  font-size: 11.5px; color: var(--fill-secondary);
+  font-variant-numeric: tabular-nums; white-space: nowrap; }
+.${c} .stage { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.${c} .stats { display: inline-flex; align-items: center; gap: 7px; }
+.${c} .svc { opacity: 0.75; }
+.${c} .sep { opacity: 0.45; }
+.${c} .ok { color: var(--accent-green, #33a457); font-weight: 600; }
+.${c} .err { color: var(--accent-red, #d5252a); font-weight: 600; }
+.${c} .dots { display: inline-flex; gap: 3px; }
+.${c} .dots i { width: 4px; height: 4px; border-radius: 50%;
+  background: currentColor; opacity: 0.25;
+  animation: ${config.addonRef}-dotpulse 1.1s ease-in-out infinite; }
+.${c} .dots i:nth-child(2) { animation-delay: 0.18s; }
+.${c} .dots i:nth-child(3) { animation-delay: 0.36s; }
+.${c} .dots.fast i { animation-duration: 0.7s; }
+@keyframes ${config.addonRef}-dotpulse {
+  0%, 70%, 100% { opacity: 0.25; transform: scale(0.8); }
+  35% { opacity: 1; transform: scale(1); }
+}`;
+}
+
+function formatSeconds(ms: number): string {
+  return `${(Math.max(ms, 0) / 1000).toFixed(1)}s`;
+}
+
+/**
+ * Service display name for the status row. Unlike
+ * `getServiceNameByID`, this omits the configuration-status emoji
+ * (🗝️/📍), which is meaningful in settings lists but noise here.
+ */
+function getStatusServiceName(serviceId: string): string {
+  return (
+    (getPref(`renameServices.${serviceId}`) as string) ||
+    getString(`service-${serviceId}`)
+  );
+}
+
+function updatePopupStatus(
+  statusBox: HTMLDivElement,
+  task: TranslateTask,
+): void {
+  // The pref defaults to true; treat an unset value as enabled so the row
+  // shows even before default prefs are applied.
+  if (getPref("enablePopupStatus") === false) {
+    stopPopupStatusTimer(statusBox);
+    statusBox.replaceChildren();
+    statusBox.dataset.statusMode = "hidden";
+    statusBox.style.display = "none";
+    return;
+  }
+  ensurePopupStatusStyles(statusBox.ownerDocument);
+  const doc = statusBox.ownerDocument;
+
+  const progress = task.progress;
+  const now = Date.now();
+
+  // The row is refreshed every ~200ms (timer) and on every stream chunk.
+  // Rebuilding its DOM on each tick would restart the dot animation from
+  // its first frame, so the structure is rebuilt only when the display
+  // mode changes; per-tick values are patched into [data-dyn] spans.
+  const dynamicText: Record<string, string> = {};
+  type StagePart =
+    | { kind: "dots"; fast: boolean }
+    | { kind: "text"; text: string; cls?: string };
+  type StatsPart = { text: string; cls?: string; dyn?: string };
+  const stageParts: StagePart[] = [];
+  const statsParts: StatsPart[] = [];
+  let mode: string;
+  let visible = true;
+
+  switch (task.status) {
+    case "processing": {
+      const decoding = progress?.firstTokenAt !== undefined;
+      mode = `processing-${decoding ? "decode" : "prefill"}${
+        progress ? "" : "-empty"
+      }`;
+      stageParts.push({ kind: "dots", fast: decoding });
+      stageParts.push({
+        kind: "text",
+        text: getString(decoding ? "status-decode" : "status-prefill"),
+      });
+      if (progress) {
+        const elapsed = formatSeconds(now - progress.startAt);
+        if (decoding) {
+          const tokens = progress.outputTokens ?? progress.streamedChunks ?? 0;
+          const decodeMs = Math.max(now - (progress.firstTokenAt ?? now), 100);
+          dynamicText.tok = `${tokens} tok`;
+          dynamicText.tps = `${Math.round(tokens / (decodeMs / 1000))} tok/s`;
+          dynamicText.elapsed = elapsed;
+          statsParts.push(
+            { text: "", dyn: "tok" },
+            { text: "·", cls: "sep" },
+            { text: "", dyn: "tps" },
+            { text: "·", cls: "sep" },
+            { text: "", dyn: "elapsed" },
+          );
+        } else {
+          dynamicText.elapsed = elapsed;
+          statsParts.push({ text: "", dyn: "elapsed" });
+        }
+      }
+      break;
+    }
+    case "success": {
+      if (!progress) {
+        // No progress info (e.g. cache hit); nothing to report.
+        visible = false;
+        mode = "hidden";
+        break;
+      }
+      mode = `success-${task.service}-${progress.inputTokens ?? "x"}-${
+        progress.outputTokens ?? "x"
+      }`;
+      stageParts.push({ kind: "text", text: "✓", cls: "ok" });
+      if (task.service) {
+        stageParts.push({
+          kind: "text",
+          text: getStatusServiceName(task.service),
+          cls: "svc",
+        });
+      }
+      const elapsed = formatSeconds((progress.endAt ?? now) - progress.startAt);
+      if (
+        typeof progress.inputTokens === "number" ||
+        typeof progress.outputTokens === "number"
+      ) {
+        statsParts.push({
+          text: `↑ ${progress.inputTokens ?? "?"} ↓ ${progress.outputTokens ?? "?"}`,
+        });
+        statsParts.push({ text: "·", cls: "sep" });
+      }
+      statsParts.push({ text: elapsed });
+      break;
+    }
+    case "fail": {
+      mode = "fail";
+      stageParts.push({ kind: "text", text: "✗", cls: "err" });
+      stageParts.push({ kind: "text", text: getString("status-fail") });
+      if (progress) {
+        statsParts.push({
+          text: formatSeconds((progress.endAt ?? now) - progress.startAt),
+        });
+      }
+      break;
+    }
+    default: {
+      visible = false;
+      mode = "hidden";
+      break;
+    }
+  }
+
+  if (!visible) {
+    statusBox.replaceChildren();
+    statusBox.dataset.statusMode = mode;
+    statusBox.style.display = "none";
+    ensurePopupStatusTimer(statusBox, task);
+    return;
+  }
+
+  if (statusBox.dataset.statusMode !== mode) {
+    statusBox.replaceChildren();
+    const stage = doc.createElement("span");
+    stage.className = "stage";
+    for (const part of stageParts) {
+      if (part.kind === "dots") {
+        const dots = doc.createElement("span");
+        dots.className = part.fast ? "dots fast" : "dots";
+        for (let i = 0; i < 3; i++) {
+          dots.appendChild(doc.createElement("i"));
+        }
+        stage.appendChild(dots);
+      } else {
+        const span = doc.createElement("span");
+        if (part.cls) {
+          span.className = part.cls;
+        }
+        span.textContent = part.text;
+        stage.appendChild(span);
+      }
+    }
+    const stats = doc.createElement("span");
+    stats.className = "stats";
+    for (const part of statsParts) {
+      const span = doc.createElement("span");
+      if (part.cls) {
+        span.className = part.cls;
+      }
+      if (part.dyn) {
+        span.dataset.dyn = part.dyn;
+      }
+      span.textContent = part.text;
+      stats.appendChild(span);
+    }
+    statusBox.appendChild(stage);
+    if (statsParts.length > 0) {
+      const sep = doc.createElement("span");
+      sep.className = "sep";
+      sep.textContent = "·";
+      statusBox.appendChild(sep);
+    }
+    statusBox.appendChild(stats);
+    statusBox.dataset.statusMode = mode;
+  }
+
+  // Patch per-tick values without touching the animated dots.
+  statusBox.querySelectorAll("[data-dyn]").forEach((span) => {
+    const key = (span as HTMLElement).dataset.dyn!;
+    if (dynamicText[key] !== undefined) {
+      span.textContent = dynamicText[key];
+    }
+  });
+
+  statusBox.style.removeProperty("display");
+  ensurePopupStatusTimer(statusBox, task);
+}
+
+/**
+ * Drive the elapsed-time display while the task is processing. Prefill has no
+ * stream chunks to trigger refreshes, so a lightweight interval updates only
+ * the status row (never the whole popup, which would re-measure its size).
+ */
+function ensurePopupStatusTimer(
+  statusBox: HTMLDivElement,
+  task: TranslateTask,
+): void {
+  const win = statusBox.ownerDocument.defaultView;
+  if (!win) {
+    return;
+  }
+  const running = popupStatusTimers.get(statusBox);
+  if (task.status !== "processing") {
+    if (running !== undefined) {
+      win.clearInterval(running);
+      popupStatusTimers.delete(statusBox);
+    }
+    return;
+  }
+  if (running !== undefined) {
+    return;
+  }
+  const timer = win.setInterval(() => {
+    if (!statusBox.isConnected || task.status !== "processing") {
+      stopPopupStatusTimer(statusBox);
+      if (statusBox.isConnected && task.status !== "processing") {
+        updatePopupStatus(statusBox, task);
+      }
+      return;
+    }
+    updatePopupStatus(statusBox, task);
+  }, 200);
+  popupStatusTimers.set(statusBox, timer);
+}
+
+function stopPopupStatusTimer(statusBox: HTMLDivElement): void {
+  const timer = popupStatusTimers.get(statusBox);
+  if (timer === undefined) {
+    return;
+  }
+  statusBox.ownerDocument.defaultView?.clearInterval(timer);
+  popupStatusTimers.delete(statusBox);
 }

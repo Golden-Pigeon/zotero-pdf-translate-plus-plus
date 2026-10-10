@@ -2,6 +2,7 @@ import { translationRequest } from "../../utils/http";
 import { hex, sha256Digest } from "../../utils/crypto";
 import { getPref } from "../../utils/prefs";
 import { getString } from "../../utils/locale";
+import { beginTaskProgress, markTaskStreamChunk } from "../../utils/task";
 import { TranslateService } from "./base";
 
 const translate: TranslateService["translate"] = async function (data) {
@@ -76,6 +77,7 @@ const translate: TranslateService["translate"] = async function (data) {
           try {
             const dataObj = JSON.parse(eventData);
             if (dataObj.transIncre) {
+              markTaskStreamChunk(data);
               result += dataObj.transIncre;
             }
           } catch (error) {
@@ -143,6 +145,7 @@ const translate: TranslateService["translate"] = async function (data) {
       },
       responseType: "text",
       requestObserver: (xmlhttp: XMLHttpRequest) => {
+        beginTaskProgress(data, true);
         if (stream) {
           streamCallback(xmlhttp);
         } else {

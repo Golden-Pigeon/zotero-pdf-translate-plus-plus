@@ -166,6 +166,9 @@ field-titleTranslation=标题翻译
 field-abstractTranslation=摘要翻译
 
 status-translating=正在翻译...
+status-prefill=预填充
+status-decode=解码
+status-fail=失败
 sideBarIcon-title=翻译注释
 
 service-manageKeys-title=管理翻译服务密钥

@@ -205,6 +205,12 @@ function buildPrefsPane() {
     });
 
   doc
+    .querySelector(`#${makeId("enablePopupStatus")}`)
+    ?.addEventListener("command", () => {
+      addon.hooks.onReaderPopupRefresh();
+    });
+
+  doc
     .querySelector(`#${makeId("enableAddToNote")}`)
     ?.addEventListener("command", (e: Event) => {
       onPrefsEvents("setEnableAddToNote");

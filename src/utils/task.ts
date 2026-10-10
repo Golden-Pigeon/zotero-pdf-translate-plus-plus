@@ -98,6 +98,70 @@ export interface TranslateTask {
    * If the task is once processed.
    */
   processed?: boolean;
+  /**
+   * Translation progress details.
+   *
+   * Timings are filled by `TranslateTaskRunner` for every service; token
+   * counts and first-token timing are filled by streaming/LLM services.
+   */
+  progress?: {
+    /** Task start timestamp (ms). */
+    startAt: number;
+    /** Timestamp of the first received content chunk (ms). */
+    firstTokenAt?: number;
+    /** Timestamp when the task finished (ms). */
+    endAt?: number;
+    /** Input/prompt tokens reported by the service. */
+    inputTokens?: number;
+    /** Output/completion tokens reported by the service. */
+    outputTokens?: number;
+    /**
+     * Rough live count of streamed content chunks, used to approximate the
+     * decode progress before the service reports the final usage.
+     */
+    streamedChunks?: number;
+  };
+}
+
+/** Start (or restart) progress tracking for a task. */
+export function beginTaskProgress(task: TranslateTask, reset = false) {
+  if (!task.progress || reset) {
+    task.progress = { startAt: Date.now() };
+  }
+}
+
+/** Record a streamed content chunk; the first one marks the end of prefill. */
+export function markTaskStreamChunk(task: TranslateTask) {
+  const progress = task.progress;
+  if (!progress) return;
+  progress.streamedChunks = (progress.streamedChunks ?? 0) + 1;
+  if (!progress.firstTokenAt) {
+    progress.firstTokenAt = Date.now();
+  }
+}
+
+/** Record token usage reported by a service. */
+export function markTaskUsage(
+  task: TranslateTask,
+  inputTokens?: number,
+  outputTokens?: number,
+) {
+  const progress = task.progress;
+  if (!progress) return;
+  if (typeof inputTokens === "number") {
+    progress.inputTokens = inputTokens;
+  }
+  if (typeof outputTokens === "number") {
+    progress.outputTokens = outputTokens;
+  }
+}
+
+/** Mark the task as finished. */
+export function endTaskProgress(task: TranslateTask) {
+  const progress = task.progress;
+  if (progress && !progress.endAt) {
+    progress.endAt = Date.now();
+  }
 }
 
 export type TranslateTaskProcessor = (
@@ -169,6 +233,7 @@ export class TranslateTaskRunner {
 
     data.secret = getServiceSecret(data.service);
     data.status = "processing";
+    beginTaskProgress(data, true);
     try {
       ztoolkit.log(sanitizeTaskForLog(data));
       await runWhileTranslationActive(lifecycle, () =>
@@ -190,6 +255,7 @@ export class TranslateTaskRunner {
       }
       data.status = "fail";
     }
+    endTaskProgress(data);
     data.processed = true;
   }
 

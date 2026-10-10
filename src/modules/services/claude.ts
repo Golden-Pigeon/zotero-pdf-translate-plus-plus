@@ -1,5 +1,10 @@
 import { translationRequest } from "../../utils/http";
 import { getPref, getString, transformPromptWithContext } from "../../utils";
+import {
+  beginTaskProgress,
+  markTaskStreamChunk,
+  markTaskUsage,
+} from "../../utils/task";
 import { TranslateService } from "./base";
 import type { TranslateTask } from "../../utils/task";
 
@@ -54,6 +59,7 @@ const translate = <TranslateService["translate"]>async function (data) {
     body: JSON.stringify(requestBody),
     responseType: "text",
     requestObserver: (xmlhttp: XMLHttpRequest) => {
+      beginTaskProgress(data, true);
       if (stream) {
         let preLength = 0;
         let result = "";
@@ -86,7 +92,21 @@ const translate = <TranslateService["translate"]>async function (data) {
               try {
                 const obj = JSON.parse(dataLine);
                 if (obj.type === "content_block_delta") {
-                  result += obj.delta?.text || "";
+                  const text = obj.delta?.text || "";
+                  if (text) {
+                    markTaskStreamChunk(data);
+                  }
+                  result += text;
+                } else if (obj.type === "message_start") {
+                  const inputTokens = obj.message?.usage?.input_tokens;
+                  if (typeof inputTokens === "number") {
+                    markTaskUsage(data, inputTokens);
+                  }
+                } else if (obj.type === "message_delta") {
+                  const outputTokens = obj.usage?.output_tokens;
+                  if (typeof outputTokens === "number") {
+                    markTaskUsage(data, undefined, outputTokens);
+                  }
                 } else if (
                   obj.type === "content_block_start" ||
                   obj.type === "content_block_stop"
@@ -132,6 +152,13 @@ const translate = <TranslateService["translate"]>async function (data) {
           try {
             const responseObj = JSON.parse(xmlhttp.responseText);
             const resultContent = responseObj.content[0].text;
+            if (responseObj.usage) {
+              markTaskUsage(
+                data,
+                responseObj.usage.input_tokens,
+                responseObj.usage.output_tokens,
+              );
+            }
             data.result = resultContent.replace(/^\n\n/, "");
           } catch (error) {
             data.result = getString("status-translating");

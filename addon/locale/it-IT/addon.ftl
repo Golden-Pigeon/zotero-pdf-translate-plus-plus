@@ -166,6 +166,9 @@ field-titleTranslation=Traduzione del titolo
 field-abstractTranslation=Traduzione dell'Abstract
 
 status-translating=Traduzione in corso...
+status-prefill=Precompilazione
+status-decode=Decodifica
+status-fail=Errore
 sideBarIcon-title=Translate annotation
 
 service-manageKeys-title=Gestione delle chiavi dei segreto di traduzione
