@@ -400,8 +400,7 @@ export class TranslationServices {
           {
             if (item) {
               const savePosition = getPref("annotationTranslationPosition") as
-                | "comment"
-                | "body";
+                "comment" | "body";
               const savePositionInBody = getPref(
                 "annotationTranslationPositionInBody",
               ) as "before" | "after";
