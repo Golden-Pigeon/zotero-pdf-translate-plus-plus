@@ -7,6 +7,7 @@ import {
 } from "../../utils/task";
 import { TranslateService } from "./base";
 import type { TranslateTask } from "../../utils/task";
+import { addReasoningSetting, getGeminiReasoningParams } from "./reasoning";
 
 const translate = <TranslateService["translate"]>async function (data) {
   const apiURL = getPref("gemini.endPoint") as string;
@@ -50,6 +51,7 @@ const translate = <TranslateService["translate"]>async function (data) {
           ],
         },
       ],
+      ...getGeminiReasoningParams(apiURL, getPref("gemini.reasoningEffort")),
     }),
     responseType: "text",
     requestObserver: (xmlhttp: XMLHttpRequest) => {
@@ -71,7 +73,7 @@ const translate = <TranslateService["translate"]>async function (data) {
           }
           try {
             const obj = JSON.parse(data);
-            const text = obj.candidates?.[0]?.content?.parts?.[0]?.text || "";
+            const text = getResponseText(obj);
             if (text) {
               markTaskStreamChunk(task);
               result += text;
@@ -102,6 +104,20 @@ const translate = <TranslateService["translate"]>async function (data) {
           refreshHandler();
         }
       };
+      if (!getPref("gemini.stream")) {
+        xmlhttp.onload = () => {
+          const response = JSON.parse(xmlhttp.responseText);
+          data.result = getResponseText(response);
+          if (response.usageMetadata) {
+            markTaskUsage(
+              data,
+              response.usageMetadata.promptTokenCount,
+              response.usageMetadata.candidatesTokenCount,
+            );
+          }
+          refreshHandler();
+        };
+      }
     },
   });
   if (xhr?.status !== 200) {
@@ -109,6 +125,17 @@ const translate = <TranslateService["translate"]>async function (data) {
   }
   // data.result = xhr.response.choices[0].message.content.substr(2);
 };
+
+function getResponseText(response: {
+  candidates?: {
+    content?: { parts?: { text?: string; thought?: boolean }[] };
+  }[];
+}) {
+  return (response.candidates?.[0]?.content?.parts || [])
+    .filter((part) => !part.thought && typeof part.text === "string")
+    .map((part) => part.text)
+    .join("");
+}
 
 export const Gemini: TranslateService = {
   id: "gemini",
@@ -141,5 +168,6 @@ export const Gemini: TranslateService = {
         prefKey: "gemini.stream",
         nameKey: "service-gemini-dialog-stream",
       });
+    addReasoningSetting(settings, "gemini.reasoningEffort", "gemini");
   },
 };

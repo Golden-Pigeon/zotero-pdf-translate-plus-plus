@@ -8,8 +8,16 @@ import {
 } from "../../utils/task";
 import { TranslateService } from "./base";
 import { hasSourceTextPlaceholder } from "./gptPrompt";
+import { addReasoningSetting, getGPTReasoningParams } from "./reasoning";
 
-type ID = "chatgpt" | "customgpt1" | "customgpt2" | "customgpt3" | "azuregpt";
+type ID =
+  | "chatgpt"
+  | "customgpt1"
+  | "customgpt2"
+  | "customgpt3"
+  | "azuregpt"
+  | "glm"
+  | "deepseek";
 
 function getCustomParams(prefix: string): Record<string, any> {
   const storedCustomParams =
@@ -203,6 +211,11 @@ const gptTranslate = async function (
 
   const streamMode = stream ?? true;
   const useResponsesApi = isResponsesApiEndpoint(apiURL);
+  const reasoningParams = getGPTReasoningParams(
+    prefix,
+    getPref(`${prefix}.reasoningEffort`),
+    useResponsesApi,
+  );
 
   const refreshHandler = addon.api.getTemporaryRefreshHandler({ task: data });
 
@@ -345,6 +358,7 @@ const gptTranslate = async function (
         input: transformContent(data.langfrom, data.langto, data.raw),
         temperature: temperature,
         stream: streamMode,
+        ...reasoningParams,
         ...getCustomParams(prefix),
       }
     : {
@@ -357,9 +371,12 @@ const gptTranslate = async function (
         ],
         temperature: temperature,
         stream: streamMode,
-        // Ask OpenAI-compatible endpoints to report token usage on the last
-        // streamed chunk. Custom params spread later and can override this.
-        ...(streamMode ? { stream_options: { include_usage: true } } : {}),
+        // GLM reports usage without stream_options, which its public API does
+        // not document. Custom params spread later can still opt into it.
+        ...(streamMode && prefix !== "glm"
+          ? { stream_options: { include_usage: true } }
+          : {}),
+        ...reasoningParams,
         ...getCustomParams(prefix),
       };
 
@@ -389,7 +406,8 @@ const gptTranslate = async function (
 };
 
 function createGPTService(id: ID): TranslateService {
-  const checkSecret = id === "azuregpt" || id === "chatgpt";
+  const checkSecret =
+    id === "azuregpt" || id === "chatgpt" || id === "glm" || id === "deepseek";
 
   // For compatibility reasons, in older versions, the preference key was `chatGPT`, rather than matching the ID.
   // Additionally, customGPT was not initialized in prefs.js.
@@ -398,7 +416,9 @@ function createGPTService(id: ID): TranslateService {
     // | "customGPT1"
     // | "customGPT2"
     // | "customGPT3"
-    | "azureGPT";
+    | "azureGPT"
+    | "glm"
+    | "deepseek";
 
   return {
     id,
@@ -406,7 +426,11 @@ function createGPTService(id: ID): TranslateService {
     helpUrl:
       id === "azuregpt"
         ? "https://learn.microsoft.com/en-us/azure/ai-foundry/openai/reference#chat-completions"
-        : "https://gist.github.com/GrayXu/f1b72353b4b0493d51d47f0f7498b67b",
+        : id === "glm"
+          ? "https://docs.bigmodel.cn/api-reference/模型-api/对话补全"
+          : id === "deepseek"
+            ? "https://api-docs.deepseek.com/"
+            : "https://gist.github.com/GrayXu/f1b72353b4b0493d51d47f0f7498b67b",
 
     ...(checkSecret && {
       defaultSecret: "",
@@ -434,13 +458,13 @@ function createGPTService(id: ID): TranslateService {
           };
         }
 
-        const status = secret.length > 0;
+        const status = secret.trim().length > 0;
         return {
           secret,
           status,
           info: status
             ? "Click the button to check connectivity."
-            : "The secret key format is invalid.",
+            : "The secret is not set.",
         };
       },
     }),
@@ -471,6 +495,8 @@ function createGPTService(id: ID): TranslateService {
         }
 
         case "chatgpt":
+        case "glm":
+        case "deepseek":
         case "customgpt1":
         case "customgpt2":
         case "customgpt3": {
@@ -512,9 +538,15 @@ function createGPTService(id: ID): TranslateService {
           prefKey: `${prefPrefix}.temperature`,
           nameKey: `service-${servicePrefix}-dialog-temperature`,
           min: 0,
-          max: 2,
+          max: id === "glm" ? 1 : 2,
           step: 0.1,
         });
+
+      addReasoningSetting(
+        settings,
+        `${prefPrefix}.reasoningEffort`,
+        id === "glm" || id === "deepseek" ? id : "openai",
+      );
 
       if (
         id === "azuregpt" &&
@@ -575,6 +607,8 @@ function createGPTService(id: ID): TranslateService {
 }
 
 export const ChatGPT = createGPTService("chatgpt");
+export const GLM = createGPTService("glm");
+export const DeepSeek = createGPTService("deepseek");
 export const customGPT1 = createGPTService("customgpt1");
 export const customGPT2 = createGPTService("customgpt2");
 export const customGPT3 = createGPTService("customgpt3");

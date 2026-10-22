@@ -7,6 +7,7 @@ import {
 } from "../../utils/task";
 import { TranslateService } from "./base";
 import type { TranslateTask } from "../../utils/task";
+import { addReasoningSetting, getClaudeReasoningParams } from "./reasoning";
 
 function transformContent(
   langFrom: string,
@@ -46,6 +47,11 @@ const translate = <TranslateService["translate"]>async function (data) {
     temperature: temperature,
     stream: stream,
     max_tokens: maxTokens,
+    ...getClaudeReasoningParams(
+      model,
+      getPref("claude.reasoningEffort"),
+      maxTokens,
+    ),
   };
 
   const headers = {
@@ -151,7 +157,10 @@ const translate = <TranslateService["translate"]>async function (data) {
         xmlhttp.onload = () => {
           try {
             const responseObj = JSON.parse(xmlhttp.responseText);
-            const resultContent = responseObj.content[0].text;
+            const resultContent = responseObj.content
+              .filter((block: { type: string }) => block.type === "text")
+              .map((block: { text: string }) => block.text)
+              .join("");
             if (responseObj.usage) {
               markTaskUsage(
                 data,
@@ -239,5 +248,6 @@ export const Claude: TranslateService = {
         prefKey: "claude.stream",
         nameKey: "service-claude-dialog-stream",
       });
+    addReasoningSetting(settings, "claude.reasoningEffort", "claude");
   },
 };

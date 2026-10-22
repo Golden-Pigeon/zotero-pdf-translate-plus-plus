@@ -63,19 +63,36 @@ declare namespace _ZoteroTypes {
       "chatGPT.endPoint": string;
       "chatGPT.model": string;
       "chatGPT.temperature": string;
+      "chatGPT.reasoningEffort": string;
       "chatGPT.prompt": string;
       "chatGPT.stream": boolean;
       "chatGPT.customParams": string;
+      "glm.endPoint": string;
+      "glm.model": string;
+      "glm.temperature": string;
+      "glm.reasoningEffort": string;
+      "glm.prompt": string;
+      "glm.stream": boolean;
+      "glm.customParams": string;
+      "deepseek.endPoint": string;
+      "deepseek.model": string;
+      "deepseek.temperature": string;
+      "deepseek.reasoningEffort": string;
+      "deepseek.prompt": string;
+      "deepseek.stream": boolean;
+      "deepseek.customParams": string;
       "azureGPT.endPoint": string;
       "azureGPT.model": string;
       "azureGPT.apiVersion": string;
       "azureGPT.temperature": string;
+      "azureGPT.reasoningEffort": string;
       "azureGPT.prompt": string;
       "azureGPT.stream": boolean;
       "azureGPT.customParams": string;
       "gemini.endPoint": string;
       "gemini.prompt": string;
       "gemini.stream": boolean;
+      "gemini.reasoningEffort": string;
       "cnkiRegex": string;
       "cnkiSplitSecond": number;
       "cnkiUseSplit": boolean;
@@ -97,6 +114,7 @@ declare namespace _ZoteroTypes {
       "claude.endPoint": string;
       "claude.model": string;
       "claude.temperature": string;
+      "claude.reasoningEffort": string;
       "claude.prompt": string;
       "claude.maxTokens": string;
       "xftrans.engine": string;
@@ -110,8 +128,11 @@ declare namespace _ZoteroTypes {
       "nllb.apistream": boolean;
       "nllb.serveendpoint": string;
       "customGPT1.temperature": string;
+      "customGPT1.reasoningEffort": string;
       "customGPT2.temperature": string;
+      "customGPT2.reasoningEffort": string;
       "customGPT3.temperature": string;
+      "customGPT3.reasoningEffort": string;
     };
   }
 }

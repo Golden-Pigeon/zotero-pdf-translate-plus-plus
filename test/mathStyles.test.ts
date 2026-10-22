@@ -21,7 +21,7 @@ describe("Isolated math styles", function () {
     return doc.createElementNS(HTML_NS, tag) as HTMLElementTagNameMap[K];
   }
 
-  async function waitForStyles(link: HTMLLinkElement) {
+  async function waitForStyles(link: HTMLStyleElement) {
     if (link.sheet) return;
     await new Promise<void>((resolve, reject) => {
       link.addEventListener("load", () => resolve(), { once: true });
@@ -176,7 +176,7 @@ describe("Isolated math styles", function () {
       assert.exists(overlay);
       assert.exists(overlay!.querySelector(".katex"));
       assert.isTrue(textbox.hasAttribute("overlay-visible"));
-      const link = doc.querySelector(stylesheetSelector) as HTMLLinkElement;
+      const link = doc.querySelector(stylesheetSelector) as HTMLStyleElement;
       assert.exists(link);
       await waitForStyles(link);
       assert.include(
