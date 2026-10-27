@@ -35,8 +35,7 @@ export function captureTranslationLifecycle(
 export function isTranslationActive(lifecycle?: TranslationLifecycle) {
   if (!lifecycle) {
     const owner = Reflect.get(Zotero, config.addonInstance) as
-      | Addon
-      | undefined;
+      Addon | undefined;
     if (!owner) return false;
     lifecycle = captureTranslationLifecycle(owner);
   }
@@ -54,8 +53,7 @@ export function assertTranslationActive(lifecycle: TranslationLifecycle) {
 
 export function getTaskLifecycle(task: TranslateTask) {
   let lifecycle = Reflect.get(task, taskLifecycleKey) as
-    | TranslationLifecycle
-    | undefined;
+    TranslationLifecycle | undefined;
   if (!lifecycle) {
     lifecycle = captureTranslationLifecycle();
     bindTranslationTask(task, lifecycle);
