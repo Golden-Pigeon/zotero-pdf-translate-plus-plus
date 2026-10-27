@@ -16,6 +16,9 @@ describe("task raw normalization", function () {
 
   it("is idempotent so popup re-fires match the existing task", function () {
     const raw = "line one\nline two\u00A0end ﬁx";
-    assert.equal(normalizeRawText(raw), normalizeRawText(normalizeRawText(raw)));
+    assert.equal(
+      normalizeRawText(raw),
+      normalizeRawText(normalizeRawText(raw)),
+    );
   });
 });

@@ -142,8 +142,7 @@ describe("Independent plugin namespace", function () {
     const stopBeforeRendering = new Error("Translation was invoked");
     const calls: string[] = [];
     let command:
-      | Parameters<typeof ztoolkit.Prompt.register>[0][number]
-      | undefined;
+      Parameters<typeof ztoolkit.Prompt.register>[0][number] | undefined;
     const plugin = {
       data: { translate: { selectedText: "Selected text", queue: [] } },
       api: {
